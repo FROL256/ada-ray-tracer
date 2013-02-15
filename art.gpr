@@ -1,0 +1,34 @@
+with "C:\GtkAda\lib\gnat\gtkada.gpr";
+
+project ART is
+
+   for Main use ("test.adb");
+   for Source_Dirs use (".");
+   type Gtkada_Kind_Type is
+      ("static", "relocatable");
+   Library_Type : Gtkada_Kind_Type := external ("LIBRARY_TYPE");
+
+   case Library_Type is
+
+      when "static" =>
+         for Source_Files use ("Generic_Vector_Math.adb", "Generic_Vector_Math.ads", "Geometry.adb", "Geometry.ads", "Materials.adb", "Materials.ads", "my_widget.adb", "my_widget.ads", "Ray_Tracer.adb", "Ray_Tracer.ads", "test.adb", 
+            "Vector_Math.adb", "Vector_Math.ads", "Vector_Math.ads");
+
+      when "relocatable" =>
+         for Source_Files use ("Generic_Vector_Math.adb", "Generic_Vector_Math.ads", "Materials.adb", "Materials.ads", "my_widget.adb", "my_widget.ads", "Ray_Tracer.adb", "Ray_Tracer.ads", "test.adb", "Vector_Math.adb", "Vector_Math.ads");
+   end case;
+
+   package Naming is
+      for Casing use "MixedCase";
+   end Naming;
+
+   package Compiler is
+      for Default_Switches ("ada") use ("-gnat05");
+   end Compiler;
+
+   package Pretty_Printer is
+      for Default_Switches ("ada") use ("-i2");
+   end Pretty_Printer;
+
+end ART;
+

@@ -32,6 +32,10 @@ use Ada.Real_Time;
 
 package body My_Widget is
 
+   old_width, old_height : Gint := Gint(0);
+   ScreenBuffer          : Gdk_Pixbuf := null;
+   ScreenBufferPixels    : Gdk.Rgb.Rgb_Buffer_Access := null;
+
    Class_Record : GObject_Class := Uninitialized_Class;
 
    --  Array of the signals created for this widget
@@ -59,33 +63,28 @@ package body My_Widget is
                           ScreenBuffer : Gdk_Pixbuf;
                           ScreenBufferPixels : Gdk.Rgb.Rgb_Buffer_Access;
                           width, height : Gint) is
+
+      tempColor      : Rgb_Record;
+      extractedColor : Unsigned_32;
    begin
 
-      declare
-        tempColor : Rgb_Record;
-        extractedColor : Unsigned_32;
-      begin
-        tempColor.Red   := Guchar(0);
-        tempColor.Green := Guchar(255);
-        tempColor.Blue  := Guchar(0);
+      tempColor.Red   := Guchar(0);
+      tempColor.Green := Guchar(255);
+      tempColor.Blue  := Guchar(0);
 
-        for y in 0 .. height-1 loop
-          for x in 0 .. width-1 loop
+      for y in 0 .. height-1 loop
+        for x in 0 .. width-1 loop
 
-            extractedColor  := Ray_Tracer.screen_buffer(integer(x), integer(height-1-y));
+          extractedColor  := Ray_Tracer.screen_buffer(integer(x), integer(height-1-y));
 
-            tempColor.Red   := Guchar(Shift_Right(extractedColor,0)  and 255);
-            tempColor.Green := Guchar(Shift_Right(extractedColor,8)  and 255);
-            tempColor.Blue  := Guchar(Shift_Right(extractedColor,16) and 255);
+          tempColor.Red   := Guchar(Shift_Right(extractedColor,0)  and 255);
+          tempColor.Green := Guchar(Shift_Right(extractedColor,8)  and 255);
+          tempColor.Blue  := Guchar(Shift_Right(extractedColor,16) and 255);
 
-            ScreenBufferPixels(Guint(y*width+x)) := tempColor;
+          ScreenBufferPixels(Guint(y*width+x)) := tempColor;
 
-          end loop;
         end loop;
-
-
-      end;
-
+      end loop;
 
       Render_To_Drawable ( Pixbuf => ScreenBuffer,
 			   Drawable => Win,
@@ -96,7 +95,7 @@ package body My_Widget is
 			   Dest_Y => Gint(0),
 			   Width  => Gint(width),
 			   Height => Gint(height)
-			 );
+                         );
    end;
 
    -----------------
@@ -115,14 +114,10 @@ package body My_Widget is
       --  This function is called when we need to redraw the widget (for
       --  instance whenever part of it has been cleared
    is
-      width, height : Gint;
-      old_width, old_height : Gint := Gint(0);
-      Win  : Gdk.Window.Gdk_Window := Get_Window (Widget);
-      ScreenBuffer : Gdk_Pixbuf := null;
-      ScreenBufferPixels : Gdk.Rgb.Rgb_Buffer_Access := null;
-
-      t1,t2   : Ada.Real_Time.Time;
-      temp : Ada.Real_Time.Time_Span;
+      width, height : Gint := Gint(512);
+      Win   : Gdk.Window.Gdk_Window := Get_Window (Widget);
+      t1,t2 : Ada.Real_Time.Time;
+      temp  : Ada.Real_Time.Time_Span;
       sec, sec2 : Ada.Real_Time.Seconds_Count;
 
    begin
@@ -132,9 +127,12 @@ package body My_Widget is
       width := width - (width mod 4); -- a hack, need to understand what happen
 
       if old_width = width and old_height = height then
-        UpdateScreen(Widget => Widget, Win => Win, ScreenBuffer => ScreenBuffer, ScreenBufferPixels => ScreenBufferPixels, width => width,height => height);
+        UpdateScreen(Widget => Widget, Win => Win, ScreenBuffer => ScreenBuffer, ScreenBufferPixels => ScreenBufferPixels, width => width, height => height);
         return true;
       end if;
+
+      old_width  := width;
+      old_height := height;
 
       delete(ScreenBuffer);
       ScreenBuffer := Gdk.Pixbuf.Gdk_New (Colorspace      => Colorspace_RGB,
@@ -142,7 +140,6 @@ package body My_Widget is
          				  Bits_Per_Sample => 8,
          				  Width           => width,
          				  Height          => height);
-
 
       ScreenBufferPixels := Get_Pixels(ScreenBuffer);
 
@@ -173,9 +170,6 @@ package body My_Widget is
         Save(ScreenBuffer, "ART_render.PNG", Gdk.Pixbuf.PNG, tempErr);
       end;
 
-      old_width  := width;
-      old_height := height;
-
       Put_Line("Image saved");
 
       return true;
@@ -186,8 +180,8 @@ package body My_Widget is
    -- Size_Request --
    ------------------
 
-   procedure Size_Request (Widget      : access Target_Widget_Record'Class; Requisition : in Gtk_Requisition_Access);
-   procedure Size_Request (Widget      : access Target_Widget_Record'Class; Requisition : in Gtk_Requisition_Access) is
+   procedure Size_Request (Widget : access Target_Widget_Record'Class; Requisition : in Gtk_Requisition_Access);
+   procedure Size_Request (Widget : access Target_Widget_Record'Class; Requisition : in Gtk_Requisition_Access) is
    begin
       Requisition.Width  := 800;
       Requisition.Height := 600;

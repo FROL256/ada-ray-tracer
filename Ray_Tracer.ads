@@ -3,25 +3,23 @@ with Ada.Numerics.Float_Random;
 with Ada.Assertions;
 with Vector_Math;
 with Materials;
-with Geometry;
 with Ada.Unchecked_Deallocation;
 
 
 use Interfaces;
 use Vector_Math;
 use Materials;
-use Geometry;
 use Ada.Assertions;
 
 package Ray_Tracer is
 
-  width  : Positive := 800;
-  height : Positive := 600;
+  width  : Positive := 1024;
+  height : Positive := 768;
   threads_num : Positive := 8;
 
   compute_shadows  : boolean  := true;
   anti_aliasing_on : boolean  := true;
-  max_depth        : Positive := 10;
+  max_depth        : Positive := 8;
 
   background_color : float3   := (0.0,0.0,0.0);
 
@@ -32,15 +30,20 @@ package Ray_Tracer is
 
 
   procedure MultiThreadedRayTracing;
-  procedure InitScene;
-  procedure InitFractalScene;
-  procedure ResizeViewport(size_x,size_y : integer);
+  procedure MultiThreadedPathTracing;
 
+  procedure ResizeViewport(size_x,size_y : integer);
+  procedure InitCornellBoxScene;
+
+  type UpdateScreenCallBack is access procedure(save: Boolean);
+
+  updateScreen : UpdateScreenCallBack;
+
+  function GetSPP return integer;
 
 private
 
   procedure delete is new Ada.Unchecked_Deallocation(Object => ScreenBufferData, Name => ScreenBufferDataRef);
-
 
   type Color is record
     Red   : float range 0.0..1.0;
@@ -50,16 +53,44 @@ private
 
   type Hit;
 
+  type RandomGenerator is null record;
+  type RandRef is access all RandomGenerator;
+
+  agen : Ada.Numerics.Float_Random.Generator;
+  dummyRef : RandRef;
+
+  function rnd_uniform(gen : RandRef; l,h : float) return float;
+
   type Ray is record
     origin    : float3;
     direction : float3;
-    --last_hit  : access constant Hit := null;
+    gen       : RandRef;
   end record;
+
+  type Sphere is record
+    pos : float3;
+    r   : float;
+    mat : MaterialRef;
+  end record;
+
+  type AABB is record
+    min : float3;
+    max : float3;
+  end record;
+
+
 
   type Light is record
     pos   : float3;
     color : float3;
   end record;
+
+  type FlatLight is record
+    boxMin    : float3;
+    boxMax    : float3;
+    intensity : float3;
+  end record;
+
 
   type Camera is record
     pos    : float3;
@@ -77,7 +108,7 @@ private
     box 	: AABB;
   end record;
 
-  type Primitive is (Plane_TypeId, Sphere_TypeId, Triangle_TypeId);
+  type Primitive is (Plane_TypeId, Sphere_TypeId, Triangle_TypeId, Quad_TypeId);
 
   type Hit(prim_type : Primitive := Plane_TypeId) is record
 
@@ -107,26 +138,11 @@ private
   pragma Inline (ToneMapping);
 
   function EyeRayDirection (x, y : Natural) return float3;
-
-  procedure RaySphereIntersection(r : in ray; spos : in float3; radius : in float;
-				  tmin: out float; is_hit : out boolean);
-
-  function IntersectPlaneXZ(r: Ray) return Hit;
-  function IntersectAllSpheres(r: Ray; a_spheres : Spheres_Array_Ptr) return Hit;
-  function IntersectAllTriangles(r: Ray; a_triangles : Triangle_Array_Ptr; a_vert_positions : Float3_Array_Ptr) return Hit;
-  function IntersectCornellBox(r: Ray; boxData : access constant CornellBox) return Hit;
-
-  function FindClosestHit(r: Ray) return Hit;
   function ComputeShadow(hit_pos : float3; lpos : float3) return Shadow_Hit;
   function RayTrace (r : Ray; recursion_level : Integer) return float3;
 
   function Shade (in_ray : Ray; h : Hit; a_light : light) return float3;
 
-  function GetCamMatrix(cam : Camera) return float4x4;
-
-  type SpheresDirections is array(0 .. 5) of float3;
-
-  procedure PushSphereInArrayRec(prevDirectionIndex, depth: integer; pos : float3; curr_size : float; directions : SpheresDirections);
 
   type RayDirPack is array (0 ..  3) of float3;
 
@@ -140,6 +156,23 @@ private
 
   type Ray_Trace_Thread_Ptr is access Ray_Trace_Thread;
 
+  type AccumBuff is array (Integer range <>, integer range <>) of float3;
+
+  type AccumBuffRef is access AccumBuff;
+  procedure delete is new Ada.Unchecked_Deallocation(Object => AccumBuff, Name => AccumBuffRef);
+
+  type IntRef is access integer;
+  procedure delete is new Ada.Unchecked_Deallocation(Object => integer, Name => IntRef);
+
+  task type Path_Trace_Thread is
+    entry Resume;
+    entry Finish(accBuff : AccumBuffRef; spp : IntRef);
+  end Path_Trace_Thread;
+
+  type Path_Trace_Thread_Ptr is access Path_Trace_Thread;
+
+  g_threads : array(0..threads_num-1) of Path_Trace_Thread_Ptr;
+  g_threadsCreated : boolean := false;
 
   -- scene
   --
@@ -151,31 +184,31 @@ private
 
     materials : Materials_Array;
     lights    : Lights_Array;
-
-    mesh1 : Mesh;
-    spheres : Spheres_Array_Ptr;
-
-    -- only for fractal generator
-    --
-    sph_top : integer;
-    sph_top_max : integer;
-    frac_sph_directions : SpheresDirections;
-
-    floorMaterial : access MaterialWithMultiplyedTex;
-    dielecric1    : access DielectricMaterial;
+    spheres   : Spheres_Array_Ptr;
 
   end record;
 
   g_scn : Scene;
   g_cam : Camera;
 
+  g_accBuff : AccumBuffRef := null;
+  g_spp     : IntRef := null;
+
   random_gen : Ada.Numerics.Float_Random.Generator;
 
   my_cornell_box : CornellBox :=
   (
-    mat_indices => (0,1,2,3,4,5),
+    mat_indices => (2,3,1,1,1,1),
     normals => ((1.0,0.0,0.0), (-1.0,0.0,0.0), (0.0,1.0,0.0), (0.0,-1.0,0.0), (0.0,0.0,1.0), (0.0,0.0,-1.0)),
-    box => ((-2.4, -1.0, 0.0),( 2.4, 3.0, 5.0))
+    box => ((-2.5, 0.0, 0.0),( 2.5, 5.0, 5.0))
+  );
+
+
+  my_flat_light : FlatLight :=
+  (
+    boxMin    => (-0.75, 4.98, 1.25),
+    boxMax    => ( 0.75, 4.98, 3.25),
+    intensity => (10.0, 10.0, 10.0)
   );
 
   null_hit : Hit := ( prim_type => Plane_TypeId,
@@ -189,3 +222,5 @@ private
 	             );
 
 end Ray_Tracer;
+
+

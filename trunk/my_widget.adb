@@ -12,6 +12,7 @@ with Gdk.Rgb;         use Gdk.Rgb;
 with Gtk.Object;      use Gtk.Object;
 with Gtk.Handlers;    use Gtk.Handlers;
 with Gtkada.Types;    use Gtkada.Types;
+with Gtk.Main;        use Gtk.Main;
 with Glib.Error;
 
 with Ada.Text_IO;     use Ada.Text_IO;
@@ -27,8 +28,6 @@ use Ada.Integer_Text_IO;
 use Ray_Tracer;
 use Interfaces;
 use Ada.Real_Time;
-
-
 
 package body My_Widget is
 
@@ -51,6 +50,7 @@ package body My_Widget is
 
    package Allocation_Cb is new Handlers.Callback (Target_Widget_Record);
    package Allocation_Marshaller is new Allocation_Cb.Marshallers.Generic_Marshaller (Gtk_Allocation_Access, Gtk.Widget.Get_Allocation);
+
 
    procedure UpdateScreen(Widget  : access Target_Widget_Record'Class;
                           Win  : Gdk.Window.Gdk_Window;
@@ -98,6 +98,32 @@ package body My_Widget is
                          );
    end;
 
+  procedure ExtractToGdkPixbuf(scrBuff : in out Gdk_Pixbuf) is
+    tempColor      : Rgb_Record;
+    extractedColor : Unsigned_32;
+    ScreenBufferPixels   : Gdk.Rgb.Rgb_Buffer_Access := Get_Pixels(scrBuff);
+  begin
+
+    tempColor.Red   := Guchar(0);
+    tempColor.Green := Guchar(255);
+    tempColor.Blue  := Guchar(0);
+
+    for y in 0 .. height-1 loop
+      for x in 0 .. width-1 loop
+
+      extractedColor  := Ray_Tracer.screen_buffer(integer(x), integer(height-1-y));
+
+      tempColor.Red   := Guchar(Shift_Right(extractedColor,0)  and 255);
+      tempColor.Green := Guchar(Shift_Right(extractedColor,8)  and 255);
+      tempColor.Blue  := Guchar(Shift_Right(extractedColor,16) and 255);
+
+      ScreenBufferPixels(Guint(y*width+x)) := tempColor;
+
+      end loop;
+    end loop;
+
+  end ExtractToGdkPixbuf;
+
    -----------------
    -- Draw_Target --
    -----------------
@@ -107,6 +133,7 @@ package body My_Widget is
    function Draw_Target
      (Widget  : access Target_Widget_Record'Class)
       return Boolean;
+
 
    function Draw_Target
      (Widget  : access Target_Widget_Record'Class)
@@ -119,8 +146,10 @@ package body My_Widget is
       t1,t2 : Ada.Real_Time.Time;
       temp  : Ada.Real_Time.Time_Span;
       sec, sec2 : Ada.Real_Time.Seconds_Count;
-
+      saveErr : Glib.Error.GError;
    begin
+
+      Put_Line("Draw_Target");
 
       Gdk.Drawable.Get_Size (Win, width, height);
 
@@ -128,7 +157,7 @@ package body My_Widget is
 
       if old_width = width and old_height = height then
         UpdateScreen(Widget => Widget, Win => Win, ScreenBuffer => ScreenBuffer, ScreenBufferPixels => ScreenBufferPixels, width => width, height => height);
-        return true;
+       return true;
       end if;
 
       old_width  := width;
@@ -145,14 +174,16 @@ package body My_Widget is
 
       Ray_Tracer.ResizeViewport(integer(width), integer(height));
 
-      Put_Line ("init scene");
-      Ray_Tracer.InitScene;
+      Put_Line ("init cornell box");
+      Ray_Tracer.InitCornellBoxScene;
 
       Put("rendering, res ="); Put(Gint'Image(width)); Put(" x"); Put_line(Gint'Image(height));
 
       t1 := Ada.Real_Time.Clock;
 
-      Ray_Tracer.MultiThreadedRayTracing;
+      --Ray_Tracer.MultiThreadedRayTracing;
+
+      Ray_Tracer.MultiThreadedPathTracing;
 
       t2 := Ada.Real_Time.Clock;
 
@@ -162,13 +193,9 @@ package body My_Widget is
       Put(Integer'Image(Integer(sec2-sec)));
       Put_Line (" secons;");
 
-      UpdateScreen(Widget => Widget, Win => Win, ScreenBuffer => ScreenBuffer, ScreenBufferPixels => ScreenBufferPixels, width => width,height => height);
-
-      declare
-        tempErr : Glib.Error.GError;
-      begin
-        Save(ScreenBuffer, "ART_render.PNG", Gdk.Pixbuf.PNG, tempErr);
-      end;
+      UpdateScreen(Widget => Widget, Win => Win, ScreenBuffer => ScreenBuffer, ScreenBufferPixels => ScreenBufferPixels, width => width, height => height);
+      --end loop;
+      Save(ScreenBuffer, "ART_render.PNG", Gdk.Pixbuf.PNG, saveErr);
 
       Put_Line("Image saved");
 
@@ -212,6 +239,8 @@ package body My_Widget is
       --  Set up the appropriate callbacks to redraw, ...
       Return_Boolean_Cb.Connect (Widget, "expose_event", Return_Boolean_Cb.To_Marshaller (Draw_Target'Access), True);
       Size_Cb.Connect (Widget, "size_request", Requisition_Marshaller.To_Marshaller (Size_Request'Access));
+
+      --Widget.Queue_Draw;
 
    end Initialize;
 

@@ -19,6 +19,8 @@ package My_Widget is
    procedure Gtk_New (Widget : out Target_Widget);
    procedure Initialize (Widget : access Target_Widget_Record'Class);
 
+   procedure ExtractToGdkPixbuf(scrBuff : in out Gdk.Pixbuf.Gdk_Pixbuf);
+
 private
 
    type Target_Widget_Record is new

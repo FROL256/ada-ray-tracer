@@ -355,7 +355,11 @@ package body Ray_Tracer is
     return MapSampleToCosineDist(r1,r2,norm,norm,1.0);
   end RandomCosineVectorOf;
 
-  function PathTrace(r : Ray; recursion_level : Integer) return float3 is
+
+
+  -- very basic path tracing
+  --
+  function PathTrace(self : SimplePathTracer; r : Ray; recursion_level : Integer) return float3 is
     res_color : float3 := background_color;
     hit_pos,bxdf,refl,trans : float3;
     h : Hit;
@@ -374,7 +378,11 @@ package body Ray_Tracer is
     if not h.is_hit then
       return res_color;
     elsif IsLight(h.mat) then
-      return Emittance(h.mat)*max(0.0, dot(r.direction, (0.0,1.0,0.0)));
+      if dot(r.direction, (0.0,1.0,0.0)) < 0.0 then
+        return (0.0, 0.0, 0.0);
+      else
+        return Emittance(h.mat);
+      end if;
     end if;
 
     hit_pos := (r.origin + r.direction*h.t);
@@ -421,11 +429,123 @@ package body Ray_Tracer is
       bxdf := h.mat.kd;
     end if;
 
-    return bxdf*PathTrace(nextRay, recursion_level-1);
+    return bxdf*self.PathTrace(nextRay, recursion_level-1);
 
   end PathTrace;
 
 
+  function LightSample(gen : RandRef; lightGeom : FlatLight) return float3 is
+    r1 : float := rnd_uniform(gen, 0.0, 1.0);
+    r2 : float := rnd_uniform(gen, 0.0, 1.0);
+    x,y,z : float;
+  begin
+    x := lightGeom.boxMin.x + r1*(lightGeom.boxMax.x - lightGeom.boxMin.x);
+    y := lightGeom.boxMin.y;
+    z := lightGeom.boxMin.z + r2*(lightGeom.boxMax.z - lightGeom.boxMin.z);
+    return (x, y, z);
+  end LightSample;
+
+
+  -- path tracing with shadow rays
+  --
+  function PathTrace(self : PathTracerWithShadowRays; r : Ray; recursion_level : Integer) return float3 is
+    res_color : float3 := background_color;
+    hit_pos,bxdf,refl,trans : float3;
+    h : Hit;
+    nextRay : Ray;
+    ksi : float;
+    sign : float := 1.0;
+    ksitrans,ksirefl : float;
+  begin
+
+    if recursion_level = 0 then
+      return res_color;
+    end if;
+
+    h := Intersections.FindClosestHit(r);
+
+    if not h.is_hit then
+      return res_color;
+    elsif IsLight(h.mat) then
+      return res_color;
+    end if;
+
+    hit_pos := (r.origin + r.direction*h.t);
+
+    -- explicit sampling
+    --
+    declare
+      lpos : float3 := LightSample(r.gen, my_flat_light);
+      r    : float  := length(hit_pos - lpos);
+      sdir : float3 := normalize(lpos - hit_pos);
+      cos_theta1 : float := max(dot(sdir, h.normal), 0.0);
+      cos_theta2 : float := max(dot(sdir,(0.0,1.0,0.0)), 0.0);
+      impP : float  := my_flat_light.surfaceArea*cos_theta1*cos_theta2/(3.1415926535*r*r + 1.0e-5);
+      scale: float  := 1.0; --/(3.14159*0.8);
+    begin
+
+      if not ComputeShadow(hit_pos, lpos).in_shadow then
+        res_color := res_color + (h.mat.kd*my_flat_light.intensity)*impP*scale;
+      end if;
+
+    end;
+
+
+    -- pick up next ray
+    --
+    if length(h.mat.reflection) > 0.0 and not h.mat.fresnel then -- specular reflection
+      nextRay.direction := reflect(r.direction, h.normal);
+      nextRay.origin    := hit_pos + 0.00001*h.normal;
+      bxdf              := h.mat.reflection;
+    elsif h.mat.fresnel then -- reflection or transmittion
+
+      refl  := h.mat.reflection;
+      trans := h.mat.transparency;
+      ApplyFresnel(h.mat, dot(r.direction, h.normal), refl, trans);
+
+      ksitrans := length(trans) / (length(refl) + length(trans));
+      ksirefl  := length(refl) / (length(refl) + length(trans));
+
+      ksi := rnd_uniform(r.gen, 0.0, 1.0);
+
+      if ksi > ksitrans then
+        nextRay.direction := reflect(r.direction, h.normal);
+        nextRay.origin    := hit_pos + 0.00001*h.normal;
+        bxdf              := refl*(1.0/ksirefl);
+      else
+        bxdf              := trans*(1.0/ksitrans);
+        if not TotalInternalReflection(h.mat.ior, r.direction, h.normal) then
+          if dot(h.normal, r.direction) > 0.0 then
+            sign := -1.0;
+          end if;
+	  refract(h.mat.ior, r.direction, h.normal, wt => nextRay.direction);
+          nextRay.origin := hit_pos - 0.00001*sign*h.normal;
+        else
+          nextRay.direction := reflect(r.direction, h.normal);
+          nextRay.origin    := hit_pos + 0.00001*h.normal;
+        end if;
+
+      end if;
+
+    else  -- diffuse reflection
+      nextRay.direction := RandomCosineVectorOf(r.gen, h.normal);
+      nextRay.origin    := hit_pos + 0.00001*h.normal;
+      bxdf := h.mat.kd;
+    end if;
+
+    return res_color + bxdf*self.PathTrace(nextRay, recursion_level-1);
+
+  end PathTrace;
+
+
+
+
+
+
+
+
+  -- multithread stuff
+  --
   task body Path_Trace_Thread is
     r : Ray;
     rayDirs : RayDirPack;
@@ -451,16 +571,16 @@ package body Ray_Tracer is
 
           for i in 0 .. 3 loop
             r.direction := normalize(g_cam.matrix*rayDirs(i));
-            color := color + PathTrace(r,max_depth);
+            color := color + g_integrator.PathTrace(r,max_depth);
           end loop;
 
           colBuff(x,y) := color*0.25;
 
 	else
 
-	  r.direction := EyeRayDirection(x,y);
-          r.direction := normalize(g_cam.matrix*r.direction);
-	  colBuff(x,y) := PathTrace(r,max_depth);
+	  r.direction  := EyeRayDirection(x,y);
+          r.direction  := normalize(g_cam.matrix*r.direction);
+	  colBuff(x,y) := g_integrator.PathTrace(r,max_depth);
 
 	end if;
 
@@ -547,11 +667,13 @@ package body Ray_Tracer is
 
     -- glass material
     --
+    g_scn.materials(0).kd           := (0.0, 0.0, 0.0);
     g_scn.materials(0).reflection   := (1.0,1.0,1.0);
     g_scn.materials(0).roughness    := 0.25;
     g_scn.materials(0).transparency := (1.0,1.0,1.0);
     g_scn.materials(0).ior          := 1.75;
     g_scn.materials(0).fresnel      := true;
+
 
     -- floor material
     --
@@ -570,10 +692,14 @@ package body Ray_Tracer is
 
     -- Light material
     --
-    g_scn.materials(4).ka := (20.0, 20.0, 20.0);
+    g_scn.materials(4).kd     := (0.0, 0.0, 0.0);
+    g_scn.materials(4).ka     := (20.0, 20.0, 20.0);
+    my_flat_light.intensity   := g_scn.materials(4).ka;
+    my_flat_light.surfaceArea := (my_flat_light.boxMax.x - my_flat_light.boxMin.x)*(my_flat_light.boxMax.z - my_flat_light.boxMin.z);
 
     -- Mirror
     --
+    g_scn.materials(5).kd           := (0.0, 0.0, 0.0);
     g_scn.materials(5).ks           := (0.5,0.5,0.5);
     g_scn.materials(5).reflection   := (0.5,0.5,0.5);
     g_scn.materials(5).roughness    := 0.25;
@@ -582,6 +708,7 @@ package body Ray_Tracer is
 
     -- Glass 2
     --
+    g_scn.materials(6).kd := (0.0, 0.0, 0.0);
     g_scn.materials(6).ks := (0.0, 0.0, 0.0);
     g_scn.materials(6).reflection := (0.0,0.0,0.0);
     g_scn.materials(6).roughness  := 0.5;
@@ -598,19 +725,26 @@ package body Ray_Tracer is
 
     g_scn.spheres(0).pos := (-1.5,1.0,1.5);
     g_scn.spheres(0).r   := 1.0;
-    g_scn.spheres(0).mat := g_scn.materials(5);
+    g_scn.spheres(0).mat := g_scn.materials(3); -- 5
 
     g_scn.spheres(1).pos := (1.4,1.0,3.0);
     g_scn.spheres(1).r   := 1.0;
-    g_scn.spheres(1).mat := g_scn.materials(0);
+    g_scn.spheres(1).mat := g_scn.materials(1); -- 0
 
     g_scn.lights(0).color := (2.5, 2.5, 2.5);
     g_scn.lights(0).pos   := (0.0, 4.97, 2.25);
 
+    -- setup camera
+    --
     g_cam.pos    := (0.0, 2.5, 12.0);
     g_cam.lookAt := (0.0, 0.0, 0.0);
     g_cam.up     := (0.0, 1.0, 0.0);
     g_cam.matrix := IdentityMatrix;
+
+    -- select integrator
+    --
+    g_integrator := new PathTracerWithShadowRays;
+    --g_integrator := new SimplePathTracer;
 
   end InitCornellBoxScene;
 

@@ -13,8 +13,8 @@ use Ada.Assertions;
 
 package Ray_Tracer is
 
-  width  : Positive := 1024;
-  height : Positive := 768;
+  width  : Positive := 800;
+  height : Positive := 600;
   threads_num : Positive := 8;
 
   compute_shadows  : boolean  := true;
@@ -78,8 +78,6 @@ private
     max : float3;
   end record;
 
-
-
   type Light is record
     pos   : float3;
     color : float3;
@@ -89,6 +87,7 @@ private
     boxMin    : float3;
     boxMax    : float3;
     intensity : float3;
+    surfaceArea : float;
   end record;
 
 
@@ -174,6 +173,25 @@ private
   g_threads : array(0..threads_num-1) of Path_Trace_Thread_Ptr;
   g_threadsCreated : boolean := false;
 
+  -- integrators
+  --
+
+  type Integrator is abstract tagged null record;
+  type IntegratorRef is access Integrator'Class;
+
+  function PathTrace(self : Integrator; r : Ray; recursion_level : Integer) return float3 is abstract;
+
+
+  type SimplePathTracer is new Integrator with null record;
+  function PathTrace(self : SimplePathTracer; r : Ray; recursion_level : Integer) return float3;
+
+
+  type PathTracerWithShadowRays is new Integrator with null record;
+  function PathTrace(self : PathTracerWithShadowRays; r : Ray; recursion_level : Integer) return float3;
+
+
+  g_integrator : IntegratorRef := null;
+
   -- scene
   --
 
@@ -208,7 +226,8 @@ private
   (
     boxMin    => (-0.75, 4.98, 1.25),
     boxMax    => ( 0.75, 4.98, 3.25),
-    intensity => (10.0, 10.0, 10.0)
+    intensity => (10.0, 10.0, 10.0),
+    surfaceArea => 1.0
   );
 
   null_hit : Hit := ( prim_type => Plane_TypeId,

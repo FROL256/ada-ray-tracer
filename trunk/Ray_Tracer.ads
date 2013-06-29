@@ -62,9 +62,9 @@ private
   function rnd_uniform(gen : RandRef; l,h : float) return float;
 
   type Ray is record
-    origin    : float3;
-    direction : float3;
-    gen       : RandRef;
+    origin    : float3  := (0.0, 0.0, 0.0);
+    direction : float3  := (0.0, 0.0, 1.0);
+    gen       : RandRef := null;
   end record;
 
   type Sphere is record
@@ -173,21 +173,29 @@ private
   g_threads : array(0..threads_num-1) of Path_Trace_Thread_Ptr;
   g_threadsCreated : boolean := false;
 
+
+  type PathResult is record
+    color    : float3  := (0.0, 0.0, 0.0);
+    hitLight : boolean := false;
+  end record;
+
   -- integrators
   --
-
   type Integrator is abstract tagged null record;
   type IntegratorRef is access Integrator'Class;
 
-  function PathTrace(self : Integrator; r : Ray; recursion_level : Integer) return float3 is abstract;
+  function PathTrace(self : Integrator; r : Ray; recursion_level : Integer) return PathResult is abstract;
 
 
   type SimplePathTracer is new Integrator with null record;
-  function PathTrace(self : SimplePathTracer; r : Ray; recursion_level : Integer) return float3;
+  function PathTrace(self : SimplePathTracer; r : Ray; recursion_level : Integer) return PathResult;
 
 
   type PathTracerWithShadowRays is new Integrator with null record;
-  function PathTrace(self : PathTracerWithShadowRays; r : Ray; recursion_level : Integer) return float3;
+  function PathTrace(self : PathTracerWithShadowRays; r : Ray; recursion_level : Integer) return PathResult;
+
+  type PathTracerMIS is new Integrator with null record;
+  function PathTrace(self : PathTracerMIS; r : Ray; recursion_level : Integer) return PathResult;
 
 
   g_integrator : IntegratorRef := null;
@@ -222,7 +230,7 @@ private
   );
 
 
-  my_flat_light : FlatLight :=
+  g_light : FlatLight :=
   (
     boxMin    => (-0.75, 4.98, 1.25),
     boxMax    => ( 0.75, 4.98, 3.25),

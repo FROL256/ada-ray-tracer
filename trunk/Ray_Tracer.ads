@@ -15,6 +15,7 @@ package Ray_Tracer is
 
   width  : Positive := 800;
   height : Positive := 600;
+
   threads_num : Positive := 8;
 
   compute_shadows  : boolean  := true;
@@ -22,6 +23,8 @@ package Ray_Tracer is
   max_depth        : Positive := 8;
 
   background_color : float3   := (0.0,0.0,0.0);
+
+  g_gamma : float := 2.0;
 
 
   type ScreenBufferData is array(integer range <>, integer range <>) of Unsigned_32;
@@ -41,6 +44,23 @@ package Ray_Tracer is
 
   function GetSPP return integer;
 
+
+  type AccumBuff is array (Integer range <>, integer range <>) of float3;
+  type AccumBuffRef is access AccumBuff;
+
+  type FloatBuff is array (Integer range <>, integer range <>) of float;
+  type FloatBuffRef is access FloatBuff;
+
+  -- this is for test MLTCopyImage only
+  --
+  g_mltTestImage : AccumBuffRef := null;
+
+  g_mltHist : AccumBuffRef := null;
+  g_mltFave : FloatBuffRef := null;
+
+  g_mltMutations : integer := 64;
+  g_brightnessEstim : float := 0.0;
+
 private
 
   procedure delete is new Ada.Unchecked_Deallocation(Object => ScreenBufferData, Name => ScreenBufferDataRef);
@@ -53,18 +73,23 @@ private
 
   type Hit;
 
-  type RandomGenerator is null record;
-  type RandRef is access all RandomGenerator;
+  type RandomGenerator is record
+    agen : Ada.Numerics.Float_Random.Generator;
+  end record;
 
-  agen : Ada.Numerics.Float_Random.Generator;
-  dummyRef : RandRef;
+  type RandRef is access all RandomGenerator;
+  procedure delete is new Ada.Unchecked_Deallocation(Object => RandomGenerator, Name => RandRef);
+
+  --agen : Ada.Numerics.Float_Random.Generator;
+  --dummyRef : RandRef;
 
   function rnd_uniform(gen : RandRef; l,h : float) return float;
 
   type Ray is record
     origin    : float3  := (0.0, 0.0, 0.0);
     direction : float3  := (0.0, 0.0, 1.0);
-    gen       : RandRef := null;
+    gen       : RandRef := null; -- needed for MLT
+    x,y       : integer := 0;    -- needed for MLT
   end record;
 
   type Sphere is record
@@ -132,6 +157,7 @@ private
 
   function ColorToUnsigned_32(c: Color) return Unsigned_32;
   function ToneMapping(v : float3) return Color;
+  function Luminance(c : float3) return float;
 
   pragma Inline (ColorToUnsigned_32);
   pragma Inline (ToneMapping);
@@ -155,15 +181,12 @@ private
 
   type Ray_Trace_Thread_Ptr is access Ray_Trace_Thread;
 
-  type AccumBuff is array (Integer range <>, integer range <>) of float3;
-
-  type AccumBuffRef is access AccumBuff;
   procedure delete is new Ada.Unchecked_Deallocation(Object => AccumBuff, Name => AccumBuffRef);
 
   type IntRef is access integer;
   procedure delete is new Ada.Unchecked_Deallocation(Object => integer, Name => IntRef);
 
-  task type Path_Trace_Thread is
+  task type Path_Trace_Thread(threadId : integer) is
     entry Resume;
     entry Finish(accBuff : AccumBuffRef; spp : IntRef);
   end Path_Trace_Thread;
@@ -179,23 +202,57 @@ private
     hitLight : boolean := false;
   end record;
 
+  ---------------------------------------------------------------------------------------------------------------------------------------------
+  ---------------------------------------------------------------------------------------------------------------------------------------------
+  ---------------------------------------------------------------------------------------------------------------------------------------------
+
   -- integrators
   --
   type Integrator is abstract tagged null record;
   type IntegratorRef is access Integrator'Class;
 
+  procedure Init(self : Integrator) is abstract;
   function PathTrace(self : Integrator; r : Ray; recursion_level : Integer) return PathResult is abstract;
 
 
+  -- these procedures are empty for all types except MLTCopyImage
+  --
+  procedure Clear(self : Integrator);
+  procedure MLTCopyAndScaleTestImage(self : Integrator; colBuff : out AccumBuff);
+
+
+  -- stupid path tracer
+  --
   type SimplePathTracer is new Integrator with null record;
+
+  procedure Init(self : SimplePathTracer);
   function PathTrace(self : SimplePathTracer; r : Ray; recursion_level : Integer) return PathResult;
 
-
+  -- path tracer with shadow rays
+  --
   type PathTracerWithShadowRays is new Integrator with null record;
+
+  procedure Init(self : PathTracerWithShadowRays);
   function PathTrace(self : PathTracerWithShadowRays; r : Ray; recursion_level : Integer) return PathResult;
 
+
+  -- path tracer with MIS
+  --
   type PathTracerMIS is new Integrator with null record;
+
+  procedure Init(self : PathTracerMIS);
   function PathTrace(self : PathTracerMIS; r : Ray; recursion_level : Integer) return PathResult;
+
+
+  -- simple MLT implementation copying image
+  --
+  type MLTCopyImage is new Integrator with null record;
+
+  procedure Init(self : MLTCopyImage);
+  function PathTrace(self : MLTCopyImage; r : Ray; recursion_level : Integer) return PathResult;
+
+  procedure Clear(self : MLTCopyImage);
+  procedure MLTCopyAndScaleTestImage(self : MLTCopyImage; colBuff : out AccumBuff);
 
 
   g_integrator : IntegratorRef := null;

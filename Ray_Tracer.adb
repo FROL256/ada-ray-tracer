@@ -35,6 +35,11 @@ package body Ray_Tracer is
 
   end;
 
+  function Luminance(c : float3) return float is
+  begin
+    return c.x*0.299 + c.y*0.587 + c.z*0.114;
+  end Luminance;
+
 
   function ColorToUnsigned_32(c : Color) return Unsigned_32 is
     res : Unsigned_32 := 0;
@@ -300,12 +305,15 @@ package body Ray_Tracer is
   -- end of Whitted Ray Tracing
 
 
-  -- Monte-Carlo Path Tracing
+  ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  ----------------------------------------------------------------- Monte-Carlo Path Tracing -----------------------------------------------------------------------------------
+  ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   --
   function rnd_uniform(gen : RandRef; l,h : float) return float is
     t: float := 0.0;
   begin
-    t := Ada.Numerics.Float_Random.Random(Gen => agen);
+    t := Ada.Numerics.Float_Random.Random(Gen => gen.agen);
     return l + (h-l)*t;
   end rnd_uniform;
 
@@ -357,13 +365,29 @@ package body Ray_Tracer is
 
 
 
+  procedure MLTCopyAndScaleTestImage(self : Integrator; colBuff : out AccumBuff) is
+  begin
+    null;
+  end MLTCopyAndScaleTestImage;
+
+  procedure Clear(self : Integrator) is
+  begin
+    null;
+  end Clear;
+
   -- very basic path tracing
   --
+
+  procedure Init(self : SimplePathTracer) is
+  begin
+    null;
+  end Init;
+
   function PathTrace(self : SimplePathTracer; r : Ray; recursion_level : Integer) return PathResult is
     res_color : float3 := (0.0, 0.0, 0.0);
     hit_pos,bxdf,refl,trans : float3;
     h : Hit;
-    nextRay : Ray;
+    nextRay : Ray := r;
     ksi : float;
     sign : float := 1.0;
     ksitrans,ksirefl : float;
@@ -448,11 +472,16 @@ package body Ray_Tracer is
 
   -- path tracing with shadow rays
   --
+  procedure Init(self : PathTracerWithShadowRays) is
+  begin
+    null;
+  end Init;
+
   function PathTrace(self : PathTracerWithShadowRays; r : Ray; recursion_level : Integer) return PathResult is
     res_color : float3 := (0.0, 0.0, 0.0);
     hit_pos,bxdf,refl,trans : float3;
     h : Hit;
-    nextRay : Ray;
+    nextRay : Ray := r;
     ksi : float;
     sign : float := 1.0;
     ksitrans,ksirefl : float;
@@ -541,11 +570,16 @@ package body Ray_Tracer is
 
   -- path tracing with multiple importance sampling
   --
+  procedure Init(self : PathTracerMIS) is
+  begin
+    null;
+  end Init;
+
   function PathTrace(self : PathTracerMIS; r : Ray; recursion_level : Integer) return PathResult is
     res_color : float3 := (0.0, 0.0, 0.0);
     hit_pos,bxdf,refl,trans : float3;
     h : Hit;
-    nextRay : Ray;
+    nextRay : Ray := r;
     ksi : float;
     sign : float := 1.0;
     ksitrans,ksirefl : float;
@@ -661,8 +695,116 @@ package body Ray_Tracer is
   end PathTrace;
 
 
+  -- simple MLT test for copying image
+  --
+  procedure Init(self : MLTCopyImage) is
+  begin
+
+    anti_aliasing_on := false;
+    threads_num      := 1;
+
+    g_mltHist := new AccumBuff(0..width-1, 0..height-1);
+    g_mltFave := new FloatBuff(0..width-1, 0..height-1);
+    self.Clear;
+
+  end Init;
+
+  procedure Clear(self : MLTCopyImage) is
+  begin
+
+    for y in 0 .. height-1 loop
+      for x in 0 .. width-1 loop
+        g_mltHist(x,y) := (0.0, 0.0, 0.0);
+        g_mltFave(x,y) := 0.0;
+      end loop;
+    end loop;
+
+    g_brightnessEstim := 0.0;
+
+  end Clear;
+
+  function PathTrace(self : MLTCopyImage; r : Ray; recursion_level : Integer) return PathResult is
+    x0,x1,y0,y1 : integer;
+    Fx, Fy, Txy, Tyx, Axy : float;
+    colorX, colorY : float3;
+    --histValue : float;
+  begin
+
+    if g_mltTestImage = null then
+      Put_Line("MLTCopyImage, src image is null");
+      return ((0.0, 0.0, 0.0), false);
+    end if;
+
+    x0 := integer(rnd_uniform(r.gen, 0.0, float(width-1)));
+    x1 := integer(rnd_uniform(r.gen, 0.0, float(height-1)));
+
+    -- Create an initial sample point
+    --
+    colorX := g_mltTestImage(x0, x1);
+    Fx     := Luminance(colorX);
+    colorX := colorX*(1.0/Fx);
+
+    g_brightnessEstim := g_brightnessEstim + Fx; -- estimate average brightness
+
+    -- In this example, the tentative transition function T simply chooses
+    -- a random pixel location, so Txy and Tyx are always equal.
+    --
+    Txy := 1.0/(float(width)*float(height));
+    Tyx := 1.0/(float(width)*float(height));
+
+    -- Create a histogram of values using Metropolis sampling.
+    --
+    for i in 1 .. g_mltMutations loop
+
+      y0 := integer(rnd_uniform(r.gen, 0.0, float(width-1)));
+      y1 := integer(rnd_uniform(r.gen, 0.0, float(height-1)));
+
+      colorY := g_mltTestImage(y0, y1);
+      Fy     := Luminance(colorY);
+      colorY := colorY*(1.0/Fy);
+
+      g_mltFave(y0,y1) := g_mltFave(y0,y1) + Fy; -- estimate overall brigthtess per pixel
+
+      Axy := min(1.0, (Fy * Txy) / (Fx * Tyx));
+
+      if rnd_uniform(r.gen, 0.0, 1.0) < Axy then
+        x0 := y0; x1 := y1;
+        Fx := Fy;
+        colorX := colorY;
+      end if;
+
+      g_mltHist(x0,x1) := g_mltHist(x0,x1) + colorX;
+
+    end loop;
+
+    return ((0.0, 0.0, 0.0), false); -- not used because of MLTCopyAndScaleTestImage
+
+  end PathTrace;
 
 
+  procedure MLTCopyAndScaleTestImage(self : MLTCopyImage; colBuff : out AccumBuff) is
+    scale : float;
+  begin
+
+    scale := g_brightnessEstim/(float(width*height));
+
+    for y in 0 .. height-1 loop
+      for x in 0 .. width-1 loop
+
+        colBuff(x,y) := g_mltHist(x,y)*(1.0/float(g_mltMutations))*scale;
+        --colBuff(x,y) := g_mltHist(x,y)*sqr(1.0/float(g_mltMutations))*g_mltFave(x,y);
+
+        --colBuff(x,y) := g_mltTestImage(x,y);
+
+        --tmp := Luminance(g_mltTestImage(x,y));
+        --colBuff(x,y) := (tmp,tmp,tmp);
+
+      end loop;
+    end loop;
+
+    --Put("scale = "); Put(float'image(scale)); Put_Line("");
+
+  end MLTCopyAndScaleTestImage;
 
 
   -- multithread stuff
@@ -672,68 +814,82 @@ package body Ray_Tracer is
     rayDirs : RayDirPack;
     color : float3;
     colBuff : AccumBuffRef;
+    mygen : RandRef := new RandomGenerator;
   begin
 
     colBuff := new AccumBuff(0..width-1, 0..height-1);
 
+    Ada.Numerics.Float_Random.Reset(Gen => mygen.agen, Initiator => threadId*7 + threadId*threadId*13);
+
     while true loop
 
-    accept Resume;
+      accept Resume;
 
-    for y in 0 .. height - 1 loop
-      for x in 0 .. width - 1 loop
+      g_integrator.Clear; -- empty except for MLTCopyImage
 
-	r.origin := g_cam.pos;
+      for y in 0 .. height - 1 loop
+        for x in 0 .. width - 1 loop
 
-        if anti_aliasing_on then
+          r.x      := x; r.y := y;
+          r.origin := g_cam.pos;
+          r.gen    := mygen;
 
-	  color := background_color;
-          Generate4RayDirections(x,y,rayDirs);
+          if anti_aliasing_on then
 
-          for i in 0 .. 3 loop
-            r.direction := normalize(g_cam.matrix*rayDirs(i));
-            color := color + g_integrator.PathTrace(r,max_depth).color;
-          end loop;
+            color := background_color;
+            Generate4RayDirections(x,y,rayDirs);
 
-          colBuff(x,y) := color*0.25;
+            for i in 0 .. 3 loop
+              r.direction := normalize(g_cam.matrix*rayDirs(i));
+              color := color + g_integrator.PathTrace(r,max_depth).color;
+            end loop;
 
-	else
+            colBuff(x,y) := color*0.25;
 
-	  r.direction  := EyeRayDirection(x,y);
-          r.direction  := normalize(g_cam.matrix*r.direction);
-	  colBuff(x,y) := g_integrator.PathTrace(r,max_depth).color;
+          else
 
-	end if;
+            r.x := x; r.y := y;
+            r.direction  := EyeRayDirection(x,y);
+            r.direction  := normalize(g_cam.matrix*r.direction);
+            colBuff(x,y) := g_integrator.PathTrace(r,max_depth).color;
 
-      end loop;
-    end loop;
+          end if;
 
-    accept Finish (accBuff : AccumBuffRef; spp : IntRef) do
-
-      declare
-        c1 : float := float(spp.all) / (float(spp.all) + 1.0);
-        c2 : float := 1.0 / (float(spp.all) + 1.0);
-        r,g,b: float;
-      begin
-        for y in 0 .. height - 1 loop
-          for x in 0 .. width - 1 loop
-            accBuff(x,y) := c1*accBuff(x,y) + c2*colBuff(x,y);
-            r := accBuff(x,y).x; g := accBuff(x,y).y; b := accBuff(x,y).z;
-            r := r ** (1.0/2.0); -- a sort of gamma correction
-            g := g ** (1.0/2.0);
-            b := b ** (1.0/2.0);
-            screen_buffer(x,y) := ColorToUnsigned_32(ToneMapping((r,g,b)));
-          end loop;
         end loop;
+      end loop;
 
-        spp.all := spp.all + 1;
-      end;
+      -- empty in all cases except for MLTCopyImage
+      -- because copy image make histogram in separate buffer and it should be scaled and copyed to colBuff here
+      --
+      g_integrator.MLTCopyAndScaleTestImage(colBuff.all);
 
-    end Finish;
+      accept Finish (accBuff : AccumBuffRef; spp : IntRef) do
+
+        declare
+          c1 : float := float(spp.all) / (float(spp.all) + 1.0);
+          c2 : float := 1.0 / (float(spp.all) + 1.0);
+          r,g,b: float;
+        begin
+          for y in 0 .. height - 1 loop
+            for x in 0 .. width - 1 loop
+              accBuff(x,y) := c1*accBuff(x,y) + c2*colBuff(x,y);
+              r := accBuff(x,y).x; g := accBuff(x,y).y; b := accBuff(x,y).z;
+              r := r ** (1.0/g_gamma); -- gamma correction
+              g := g ** (1.0/g_gamma);
+              b := b ** (1.0/g_gamma);
+              screen_buffer(x,y) := ColorToUnsigned_32(ToneMapping((r,g,b)));
+            end loop;
+          end loop;
+
+          spp.all := spp.all + 1;
+        end;
+
+      end Finish;
 
     end loop;
 
     delete(colBuff);
+    delete(mygen);
 
     exception
       when The_Error : others =>
@@ -742,6 +898,7 @@ package body Ray_Tracer is
         Put_Line(Ada.Exceptions.Exception_Message(The_Error));
 	Put_Line("");
         delete(colBuff);
+        delete(mygen);
 
   end Path_Trace_Thread;
 
@@ -751,7 +908,7 @@ package body Ray_Tracer is
 
     if not g_threadsCreated then
       for i in 0..threads_num-1 loop
-        g_threads(i) := new Path_Trace_Thread;
+        g_threads(i) := new Path_Trace_Thread(i+1);
       end loop;
       g_threadsCreated := true;
     end if;
@@ -771,7 +928,7 @@ package body Ray_Tracer is
   procedure InitCornellBoxScene is
   begin
 
-    Ada.Numerics.Float_Random.Reset(agen);
+    --Ada.Numerics.Float_Random.Reset(agen);
 
     --for i in 0..10 loop
     --  Put("rnd_unifom(0,1) = ");
@@ -871,7 +1028,10 @@ package body Ray_Tracer is
     --
     --g_integrator := new SimplePathTracer;
     --g_integrator := new PathTracerWithShadowRays;
-    g_integrator := new PathTracerMIS;
+    --g_integrator := new PathTracerMIS;
+    g_integrator := new MLTCopyImage;
+
+    g_integrator.Init;
 
   end InitCornellBoxScene;
 

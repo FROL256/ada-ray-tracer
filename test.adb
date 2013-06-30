@@ -47,57 +47,20 @@ use Ada.Real_Time;
 
 procedure Test is
 
-   package Target_Cb is new Gtk.Handlers.User_Callback (Target_Widget_Record, String);
-   package Window_Cb is new Gtk.Handlers.Return_Callback (Gtk_Window_Record, Boolean);
-
-   function On_Main_Window_Delete_Event(Object : access Gtk_Window_Record'Class) return Boolean;
-   --  Callback for delete_event.
-
-   function On_Main_Window_Delete_Event(Object : access Gtk_Window_Record'Class) return Boolean
-   is
-      pragma Unreferenced (Object);
-   begin
-      Gtk.Main.Gtk_Exit (0);
-      return True;
-   end On_Main_Window_Delete_Event;
-
-   procedure Won
-     (Widget  : access Target_Widget_Record'Class;
-      Message : in     String);
-   procedure Won
-     (Widget  : access Target_Widget_Record'Class;
-      Message : in     String)
-   is
-      pragma Unreferenced (Widget);
-   begin
-      Text_IO.Put_Line (Message);
-   end Won;
-
-   --Main_W : Gtk_Window;
-   --Ok     : Target_Widget;
-   --Box    : Gtk_Box;
-
    t1,t2 : Ada.Real_Time.Time;
    temp  : Ada.Real_Time.Time_Span;
    sec, sec2 : Ada.Real_Time.Seconds_Count;
    saveErr : Glib.Error.GError;
 
    pixbuff : Gdk_Pixbuf := null;
+   imgbuff : Gdk_Pixbuf := null;
 
    counter : integer := 0;
    spp     : integer;
 begin
+
    Gtk.Main.Set_Locale;
    Gtk.Main.Init;
-
-   --Gtk_New (Main_W, Window_Toplevel);
-   --Gtk_New_Vbox (Box, False, 0);
-   --Add (Main_W, Box);
-   --Gtk_New (Ok);
-   --Pack_Start (Box, Ok, True, True);
-   --Window_Cb.Connect (Main_W, "delete_event", Window_Cb.To_Marshaller (On_Main_Window_Delete_Event'Access));
-   --Show_All (Main_W);
-   --Gtk.Main.Main;
 
    pixbuff := Gdk.Pixbuf.Gdk_New (Colorspace      => Colorspace_RGB,
          			  Has_Alpha       => False,
@@ -105,10 +68,26 @@ begin
          			  Width           => Gint(Ray_Tracer.width),
          			  Height          => Gint(Ray_Tracer.height));
 
-   Ray_Tracer.InitCornellBoxScene;
 
+   -- init renderer
+   --
+   Ray_Tracer.InitCornellBoxScene;
    Ray_Tracer.ResizeViewport(Ray_Tracer.width, Ray_Tracer.height);
 
+
+   -- load datasets from files
+   --
+   if Ray_Tracer.width = 800 and Ray_Tracer.height = 600 then
+     g_mltTestImage := new Ray_Tracer.AccumBuff(0..Ray_Tracer.width-1, 0..Ray_Tracer.height-1);
+     Gdk_New_From_File(imgbuff, "tiger_800x600.jpg", saveErr);
+     ConvertGdkPixbufToFloat3Array(imgbuff, g_mltTestImage.all, Ray_Tracer.width, Ray_Tracer.height);
+   end if;
+
+   Put_Line("render start");
+   Put("threads_num = "); Put(integer'Image(Ray_Tracer.threads_num)); Put_Line("");
+
+   -- main rendering loop
+   --
    t1 := Ada.Real_Time.Clock;
 
    while true loop
@@ -126,12 +105,14 @@ begin
      Put(Integer'Image(Integer(sec2-sec)));
      Put("s elasped. spp = "); Put_Line(integer'Image(spp));
 
-     ExtractToGdkPixbuf(pixbuff);
+     ExtractToGdkPixbuf(Ray_Tracer.screen_buffer.all, pixbuff);
      Save(pixbuff, "ART_render.PNG", Gdk.Pixbuf.PNG, saveErr);
 
      counter := counter + 1;
 
-   end loop;
+  end loop;
+
+
 
 end Test;
 

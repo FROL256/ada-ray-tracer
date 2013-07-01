@@ -109,8 +109,8 @@ package body Ray_Tracer is
       maxDist : float;
   begin
 
-    epsilon := max(abs(hit_pos.x), abs(hit_pos.y), abs(hit_pos.z))*0.0001;
-    epsilon := max(epsilon, 0.0001);
+    epsilon := max(abs(hit_pos.x), abs(hit_pos.y), abs(hit_pos.z))*0.00001;
+    epsilon := max(epsilon, 0.000001);
 
     shadowRay.direction := normalize(lpos-hit_pos);
     shadowRay.origin    := hit_pos + shadowRay.direction*epsilon;
@@ -118,7 +118,7 @@ package body Ray_Tracer is
     h := Intersections.FindClosestHit(shadowRay);
 
     maxDist  := length(hit_pos - lpos);
-    epsilon2 := max(maxDist*0.001, 0.0001);
+    epsilon2 := max(maxDist*0.0001, 0.00001);
 
     if h.is_hit and then (h.t < maxDist-epsilon2 and h.t > 10.0*epsilon) then
       res.in_shadow        := true;
@@ -415,7 +415,7 @@ package body Ray_Tracer is
     --
     if length(h.mat.reflection) > 0.0 and not h.mat.fresnel then -- specular reflection
       nextRay.direction := reflect(r.direction, h.normal);
-      nextRay.origin    := hit_pos + 0.00001*h.normal;
+      nextRay.origin    := hit_pos + epsilon*h.normal;
       bxdf              := h.mat.reflection;
     elsif h.mat.fresnel then -- reflection or transmittion
 
@@ -430,7 +430,7 @@ package body Ray_Tracer is
 
       if ksi > ksitrans then
         nextRay.direction := reflect(r.direction, h.normal);
-        nextRay.origin    := hit_pos + 0.00001*h.normal;
+        nextRay.origin    := hit_pos + epsilon*h.normal;
         bxdf              := refl*(1.0/ksirefl);
       else
         bxdf              := trans*(1.0/ksitrans);
@@ -439,17 +439,17 @@ package body Ray_Tracer is
             sign := -1.0;
           end if;
 	  refract(h.mat.ior, r.direction, h.normal, wt => nextRay.direction);
-          nextRay.origin := hit_pos - 0.00001*sign*h.normal;
+          nextRay.origin := hit_pos - epsilon*sign*h.normal;
         else
           nextRay.direction := reflect(r.direction, h.normal);
-          nextRay.origin    := hit_pos + 0.00001*h.normal;
+          nextRay.origin    := hit_pos + epsilon*h.normal;
         end if;
 
       end if;
 
     else  -- diffuse reflection
       nextRay.direction := RandomCosineVectorOf(r.gen, h.normal);
-      nextRay.origin    := hit_pos + 0.00001*h.normal;
+      nextRay.origin    := hit_pos + epsilon*h.normal;
       bxdf := h.mat.kd;
     end if;
 
@@ -509,7 +509,7 @@ package body Ray_Tracer is
       sdir : float3 := normalize(lpos - hit_pos);
       cos_theta1 : float := max(dot(sdir, h.normal), 0.0);
       cos_theta2 : float := max(dot(sdir,(0.0,1.0,0.0)), 0.0);
-      impP : float  := g_light.surfaceArea*cos_theta1*cos_theta2/(3.1415926535*r*r + 1.0e-5);
+      impP : float := g_light.surfaceArea*cos_theta1*cos_theta2/(max(3.1415926535*r*r, epsilon));
     begin
 
       if not ComputeShadow(hit_pos, lpos).in_shadow then
@@ -523,7 +523,7 @@ package body Ray_Tracer is
     --
     if length(h.mat.reflection) > 0.0 and not h.mat.fresnel then -- specular reflection
       nextRay.direction := reflect(r.direction, h.normal);
-      nextRay.origin    := hit_pos + 0.00001*h.normal;
+      nextRay.origin    := hit_pos + epsilon*h.normal;
       bxdf              := h.mat.reflection;
     elsif h.mat.fresnel then -- reflection or transmittion
 
@@ -538,7 +538,7 @@ package body Ray_Tracer is
 
       if ksi > ksitrans then
         nextRay.direction := reflect(r.direction, h.normal);
-        nextRay.origin    := hit_pos + 0.00001*h.normal;
+        nextRay.origin    := hit_pos + epsilon*h.normal;
         bxdf              := refl*(1.0/ksirefl);
       else
         bxdf              := trans*(1.0/ksitrans);
@@ -547,7 +547,7 @@ package body Ray_Tracer is
             sign := -1.0;
           end if;
 	  refract(h.mat.ior, r.direction, h.normal, wt => nextRay.direction);
-          nextRay.origin := hit_pos - 0.00001*sign*h.normal;
+          nextRay.origin := hit_pos - epsilon*sign*h.normal;
         else
           nextRay.direction := reflect(r.direction, h.normal);
           nextRay.origin    := hit_pos + 0.00001*h.normal;
@@ -557,7 +557,7 @@ package body Ray_Tracer is
 
     else  -- diffuse reflection
       nextRay.direction := RandomCosineVectorOf(r.gen, h.normal);
-      nextRay.origin    := hit_pos + 0.00001*h.normal;
+      nextRay.origin    := hit_pos + epsilon*h.normal;
       bxdf := h.mat.kd;
     end if;
 
@@ -616,7 +616,7 @@ package body Ray_Tracer is
       sdir : float3 := normalize(lpos - hit_pos);
       cos_theta1 : float := max(dot(sdir, h.normal), 0.0);
       cos_theta2 : float := max(dot(sdir,(0.0,1.0,0.0)), 0.0);
-      impP : float  := g_light.surfaceArea*cos_theta1*cos_theta2/(3.1415926535*r*r + 1.0e-5);
+      impP : float  := g_light.surfaceArea*cos_theta1*cos_theta2/(max(3.1415926535*r*r, epsilon));
     begin
 
       if not ComputeShadow(hit_pos, lpos).in_shadow then
@@ -630,7 +630,7 @@ package body Ray_Tracer is
     --
     if length(h.mat.reflection) > 0.0 and not h.mat.fresnel then -- specular reflection
       nextRay.direction := reflect(r.direction, h.normal);
-      nextRay.origin    := hit_pos + 0.00001*h.normal;
+      nextRay.origin    := hit_pos + epsilon*h.normal;
       bxdf              := h.mat.reflection;
       specularBounce    := true;
     elsif h.mat.fresnel then -- reflection or transmittion
@@ -646,7 +646,7 @@ package body Ray_Tracer is
 
       if ksi > ksitrans then
         nextRay.direction := reflect(r.direction, h.normal);
-        nextRay.origin    := hit_pos + 0.00001*h.normal;
+        nextRay.origin    := hit_pos + epsilon*h.normal;
         bxdf              := refl*(1.0/ksirefl);
       else
         bxdf              := trans*(1.0/ksitrans);
@@ -655,10 +655,10 @@ package body Ray_Tracer is
             sign := -1.0;
           end if;
 	  refract(h.mat.ior, r.direction, h.normal, wt => nextRay.direction);
-          nextRay.origin := hit_pos - 0.00001*sign*h.normal;
+          nextRay.origin := hit_pos - epsilon*sign*h.normal;
         else
           nextRay.direction := reflect(r.direction, h.normal);
-          nextRay.origin    := hit_pos + 0.00001*h.normal;
+          nextRay.origin    := hit_pos + epsilon*h.normal;
         end if;
 
       end if;
@@ -667,7 +667,7 @@ package body Ray_Tracer is
 
     else  -- diffuse reflection
       nextRay.direction := RandomCosineVectorOf(r.gen, h.normal);
-      nextRay.origin    := hit_pos + 0.00001*h.normal;
+      nextRay.origin    := hit_pos + epsilon*h.normal;
       bxdf              := h.mat.kd;
       specularBounce    := false;
     end if;
@@ -675,9 +675,11 @@ package body Ray_Tracer is
     ret := self.PathTrace(nextRay, recursion_level-1);
     implicitColor := bxdf*ret.color;
 
+    -- Multiple importance Sampling (MIS)
+    --
     if ret.hitLight then
-      pi := 1.0/g_light.surfaceArea;
-      pe := 3.1415926535/max(dot(nextRay.direction, h.normal), 1.0e-5);
+      pe := 1.0/g_light.surfaceArea;
+      pi := 3.1415926535/max(dot(nextRay.direction, h.normal), epsilon);
 
       if specularBounce then
         res_color := implicitColor;
@@ -763,8 +765,6 @@ package body Ray_Tracer is
       Fy     := Luminance(colorY);
       colorY := colorY*(1.0/Fy);
 
-      g_mltFave(y0,y1) := g_mltFave(y0,y1) + Fy; -- estimate overall brigthtess per pixel
-
       Axy := min(1.0, (Fy * Txy) / (Fx * Tyx));
 
       if rnd_uniform(r.gen, 0.0, 1.0) < Axy then
@@ -774,6 +774,7 @@ package body Ray_Tracer is
       end if;
 
       g_mltHist(x0,x1) := g_mltHist(x0,x1) + colorX;
+      g_mltFave(x0,x1) := g_mltFave(x0,x1) + Fx; -- estimate overall brigthtess per pixel
 
     end loop;
 
@@ -971,7 +972,7 @@ package body Ray_Tracer is
     -- Light material
     --
     g_scn.materials(4).kd     := (0.0, 0.0, 0.0);
-    g_scn.materials(4).ka     := (20.0, 20.0, 20.0);
+    g_scn.materials(4).ka     := (5.0, 5.0, 5.0);
     g_light.intensity   := g_scn.materials(4).ka;
     g_light.surfaceArea := (g_light.boxMax.x - g_light.boxMin.x)*(g_light.boxMax.z - g_light.boxMin.z);
 
@@ -1028,8 +1029,8 @@ package body Ray_Tracer is
     --
     --g_integrator := new SimplePathTracer;
     --g_integrator := new PathTracerWithShadowRays;
-    --g_integrator := new PathTracerMIS;
-    g_integrator := new MLTCopyImage;
+    g_integrator := new PathTracerMIS;
+    --g_integrator := new MLTCopyImage;
 
     g_integrator.Init;
 

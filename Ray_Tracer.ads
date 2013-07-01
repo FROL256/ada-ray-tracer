@@ -25,6 +25,7 @@ package Ray_Tracer is
   background_color : float3   := (0.0,0.0,0.0);
 
   g_gamma : float := 2.0;
+  epsilon : float := 1.0e-5;
 
 
   type ScreenBufferData is array(integer range <>, integer range <>) of Unsigned_32;
@@ -289,8 +290,8 @@ private
 
   g_light : FlatLight :=
   (
-    boxMin    => (-0.75, 4.98, 1.25),
-    boxMax    => ( 0.75, 4.98, 3.25),
+    boxMin    => (-1.75, 4.98, 0.25),
+    boxMax    => ( 1.75, 4.98, 4.25),
     intensity => (10.0, 10.0, 10.0),
     surfaceArea => 1.0
   );

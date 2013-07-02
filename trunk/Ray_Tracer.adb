@@ -132,190 +132,23 @@ package body Ray_Tracer is
 
   end ComputeShadow;
 
-   function GetAttenuation(l_pos : in float3; p : in float3) return float is
-    d : float;
-  begin
-    d := length(l_pos-p);
-    return 1.0/(1.0 + d*0.01 + d*d*0.001);
-    --return 1.0;
-  end GetAttenuation;
-
-  function Shade (in_ray : Ray; h : Hit; a_light : light) return float3 is
-      l,v,hit_pos,S : float3;
-      NormalDotLight: float;
-  begin
-
-    hit_pos := in_ray.origin + h.t*in_ray.direction;
-    l := normalize(a_light.pos - hit_pos);
-    v := normalize(in_ray.origin - hit_pos);
-    NormalDotLight := dot(h.normal, l);
-
-    S := EvalCookTorranceBRDF(h.mat.all, l, v, h.normal);
-    return a_light.color*(h.mat.ka + S*GetAttenuation(a_light.pos, hit_pos));
-
-  end Shade;
-
-
-  -- Whitted Ray Tracing
-  --
-  function RayTrace (r : Ray; recursion_level : Integer) return float3 is
-    res_color : float3 := background_color;
-    h : Hit;
-    hit_pos : float3;
-    refl, trans : float3;
-    ior : float;
-  begin
-
-    if recursion_level = 0 then
-      return res_color;
-    end if;
-
-    h := Intersections.FindClosestHit(r);
-
-    if not h.is_hit then
-      return res_color;
-    elsif IsLight(h.mat) then
-      return Emittance(h.mat);
-    end if;
-
-    hit_pos := (r.origin + r.direction*h.t);
-
-    if compute_shadows then
-      if not ComputeShadow(hit_pos, g_scn.lights(0).pos).in_shadow then
-        res_color := res_color + Shade(r,h, g_scn.lights(0));
-      end if;
-    else
-      res_color := res_color + Shade(r,h, g_scn.lights(0));
-    end if;
-
-    refl  := h.mat.reflection;
-    trans := h.mat.transparency;
-
-    if h.mat.fresnel then
-      ApplyFresnel(h.mat, dot(r.direction, h.normal), refl, trans);
-    end if;
-
-    ior := h.mat.ior;
-
-    if length(trans) > 0.0 then
-
-      if not TotalInternalReflection(ior, r.direction, h.normal) then
-
-	declare
-          refractedRay : Ray;
-          sign : float := 1.0;
-        begin
-
-          if dot(h.normal, r.direction) > 0.0 then
-            sign := -1.0;
-            --ior  := 1.0/ior;
-          end if;
-
-	  refract(ior, r.direction, h.normal, wt => refractedRay.direction);
-
-          refractedRay.origin := hit_pos - 0.00001*sign*h.normal;
-          res_color := res_color + trans*RayTrace(refractedRay, recursion_level-1);
-        end;
-     end if;
-    end if;
-
-    if length(refl) > 0.0 then
-
-      declare
-        reflectedRay : Ray;
-      begin
-
-        reflectedRay.direction := reflect(r.direction, h.normal);
-        reflectedRay.origin    := hit_pos + 0.00001*h.normal;
-        res_color := res_color + refl*RayTrace(reflectedRay, recursion_level-1);
-
-      end;
-    end if;
-
-    return res_color;
-
-  end RayTrace;
-
-
-  task body Ray_Trace_Thread is
-    r : Ray;
-    rayDirs : RayDirPack;
-    color : float3;
-  begin
-
-    for y in yBegin .. yEnd loop
-      for x in 0 .. width - 1 loop
-
-	r.origin := g_cam.pos;
-
-        if anti_aliasing_on then
-
-	  color := background_color;
-          Generate4RayDirections(x,y,rayDirs);
-
-          for i in 0 .. 3 loop
-            r.direction := normalize(g_cam.matrix*rayDirs(i));
-            color := color + RayTrace(r,max_depth);
-          end loop;
-
-          screen_buffer(x,y) := ColorToUnsigned_32(ToneMapping(color*0.25));
-
-	else
-
-	  r.direction := EyeRayDirection(x,y);
-          r.direction := normalize(g_cam.matrix*r.direction);
-	  screen_buffer(x,y) := ColorToUnsigned_32(ToneMapping(RayTrace(r,max_depth)));
-
-	end if;
-
-      end loop;
-    end loop;
-
-    accept Finish;
-
-    exception
-      when The_Error : others =>
-        Put_Line("Error raised in the thread:");
-        Put_Line(Ada.Exceptions.Exception_Name(The_Error));
-        Put_Line(Ada.Exceptions.Exception_Message(The_Error));
-	Put_Line("");
-
-  end Ray_Trace_Thread;
-
-  procedure MultiThreadedRayTracing is
-
-    threads : array (0..threads_num) of Ray_Trace_Thread_Ptr;
-    stepY : integer := height/threads_num;
-
-  begin
-
-    Put("ray trace threads num: ");
-    Put_Line(integer'Image(threads_num));
-
-    for i in 0..threads_num-1 loop
-      threads(i) := new Ray_Trace_Thread(i*stepY, (i+1)*stepY-1);
-    end loop;
-
-    for i in 0..threads_num-1 loop
-      threads(i).Finish;
-    end loop;
-
-  end MultiThreadedRayTracing;
-
-  -- end of Whitted Ray Tracing
-
 
   ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   ----------------------------------------------------------------- Monte-Carlo Path Tracing -----------------------------------------------------------------------------------
   ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   --
-  function rnd_uniform(gen : RandRef; l,h : float) return float is
+  function rnd_uniform(gen : RandomGenerator; l,h : float) return float is
     t: float := 0.0;
   begin
     t := Ada.Numerics.Float_Random.Random(Gen => gen.agen);
     return l + (h-l)*t;
   end rnd_uniform;
+
+  procedure regenerateSequence(gen : RandomGenerator) is
+  begin
+    null;
+  end regenerateSequence;
 
 
   function MapSampleToCosineDist(r1,r2 : float; direction, normal : float3; power : float) return float3 is
@@ -357,28 +190,59 @@ package body Ray_Tracer is
   end MapSampleToCosineDist;
 
   function RandomCosineVectorOf(gen : RandRef; norm : float3) return float3 is
-    r1 : float := rnd_uniform(gen, 0.0, 1.0);
-    r2 : float := rnd_uniform(gen, 0.0, 1.0);
+    r1 : float := gen.rnd_uniform(0.0, 1.0);
+    r2 : float := gen.rnd_uniform(0.0, 1.0);
   begin
     return MapSampleToCosineDist(r1,r2,norm,norm,1.0);
   end RandomCosineVectorOf;
 
 
 
-  procedure MLTCopyAndScaleTestImage(self : Integrator; colBuff : out AccumBuff) is
+  ---- basic path tracing evaluation
+  --
+  procedure DoPass(self : in out Integrator; colBuff : AccumBuffRef) is
+    r       : Ray;
+    rayDirs : RayDirPack;
+    color   : float3;
   begin
-    null;
-  end MLTCopyAndScaleTestImage;
 
-  procedure Clear(self : Integrator) is
-  begin
-    null;
-  end Clear;
+      for y in 0 .. height - 1 loop
+        for x in 0 .. width - 1 loop
+
+          r.x      := x; r.y := y;
+          r.origin := g_cam.pos;
+
+          if anti_aliasing_on then
+
+            color := background_color;
+            Generate4RayDirections(x,y,rayDirs);
+
+            for i in 0 .. 3 loop
+              r.direction := normalize(g_cam.matrix*rayDirs(i));
+              color := color + PathTrace(Integrator'Class(self), r,max_depth).color;
+            end loop;
+
+            colBuff(x,y) := color*0.25;
+
+          else
+
+            r.x := x; r.y := y;
+            r.direction  := EyeRayDirection(x,y);
+            r.direction  := normalize(g_cam.matrix*r.direction);
+            colBuff(x,y) := PathTrace(Integrator'Class(self), r,max_depth).color;
+
+          end if;
+
+        end loop;
+    end loop;
+
+  end DoPass;
+
 
   -- very basic path tracing
   --
 
-  procedure Init(self : SimplePathTracer) is
+  procedure Init(self : in out SimplePathTracer) is
   begin
     null;
   end Init;
@@ -426,7 +290,7 @@ package body Ray_Tracer is
       ksitrans := length(trans) / (length(refl) + length(trans));
       ksirefl  := length(refl) / (length(refl) + length(trans));
 
-      ksi := rnd_uniform(r.gen, 0.0, 1.0);
+      ksi := self.gen.rnd_uniform(0.0, 1.0);
 
       if ksi > ksitrans then
         nextRay.direction := reflect(r.direction, h.normal);
@@ -448,7 +312,7 @@ package body Ray_Tracer is
       end if;
 
     else  -- diffuse reflection
-      nextRay.direction := RandomCosineVectorOf(r.gen, h.normal);
+      nextRay.direction := RandomCosineVectorOf(self.gen, h.normal);
       nextRay.origin    := hit_pos + epsilon*h.normal;
       bxdf := h.mat.kd;
     end if;
@@ -459,8 +323,8 @@ package body Ray_Tracer is
 
 
   function LightSample(gen : RandRef; lightGeom : FlatLight) return float3 is
-    r1 : float := rnd_uniform(gen, 0.0, 1.0);
-    r2 : float := rnd_uniform(gen, 0.0, 1.0);
+    r1 : float := gen.rnd_uniform(0.0, 1.0);
+    r2 : float := gen.rnd_uniform(0.0, 1.0);
     x,y,z : float;
   begin
     x := lightGeom.boxMin.x + r1*(lightGeom.boxMax.x - lightGeom.boxMin.x);
@@ -472,7 +336,7 @@ package body Ray_Tracer is
 
   -- path tracing with shadow rays
   --
-  procedure Init(self : PathTracerWithShadowRays) is
+  procedure Init(self : in out PathTracerWithShadowRays) is
   begin
     null;
   end Init;
@@ -504,7 +368,7 @@ package body Ray_Tracer is
     -- explicit sampling
     --
     declare
-      lpos : float3 := LightSample(r.gen, g_light);
+      lpos : float3 := LightSample(self.gen, g_light);
       r    : float  := length(hit_pos - lpos);
       sdir : float3 := normalize(lpos - hit_pos);
       cos_theta1 : float := max(dot(sdir, h.normal), 0.0);
@@ -534,7 +398,7 @@ package body Ray_Tracer is
       ksitrans := length(trans) / (length(refl) + length(trans));
       ksirefl  := length(refl) / (length(refl) + length(trans));
 
-      ksi := rnd_uniform(r.gen, 0.0, 1.0);
+      ksi := self.gen.rnd_uniform(0.0, 1.0);
 
       if ksi > ksitrans then
         nextRay.direction := reflect(r.direction, h.normal);
@@ -556,7 +420,7 @@ package body Ray_Tracer is
       end if;
 
     else  -- diffuse reflection
-      nextRay.direction := RandomCosineVectorOf(r.gen, h.normal);
+      nextRay.direction := RandomCosineVectorOf(self.gen, h.normal);
       nextRay.origin    := hit_pos + epsilon*h.normal;
       bxdf := h.mat.kd;
     end if;
@@ -570,7 +434,7 @@ package body Ray_Tracer is
 
   -- path tracing with multiple importance sampling
   --
-  procedure Init(self : PathTracerMIS) is
+  procedure Init(self : in out PathTracerMIS) is
   begin
     null;
   end Init;
@@ -611,7 +475,7 @@ package body Ray_Tracer is
     -- explicit sampling
     --
     declare
-      lpos : float3 := LightSample(r.gen, g_light);
+      lpos : float3 := LightSample(self.gen, g_light);
       r    : float  := length(hit_pos - lpos);
       sdir : float3 := normalize(lpos - hit_pos);
       cos_theta1 : float := max(dot(sdir, h.normal), 0.0);
@@ -642,7 +506,7 @@ package body Ray_Tracer is
       ksitrans := length(trans) / (length(refl) + length(trans));
       ksirefl  := length(refl) / (length(refl) + length(trans));
 
-      ksi := rnd_uniform(r.gen, 0.0, 1.0);
+      ksi := self.gen.rnd_uniform(0.0, 1.0);
 
       if ksi > ksitrans then
         nextRay.direction := reflect(r.direction, h.normal);
@@ -666,7 +530,7 @@ package body Ray_Tracer is
       specularBounce    := true;
 
     else  -- diffuse reflection
-      nextRay.direction := RandomCosineVectorOf(r.gen, h.normal);
+      nextRay.direction := RandomCosineVectorOf(self.gen, h.normal);
       nextRay.origin    := hit_pos + epsilon*h.normal;
       bxdf              := h.mat.kd;
       specularBounce    := false;
@@ -699,54 +563,58 @@ package body Ray_Tracer is
 
   -- simple MLT test for copying image
   --
-  procedure Init(self : MLTCopyImage) is
+  procedure Init(self : in out MLTCopyImage) is
   begin
 
-    anti_aliasing_on := false;
-    threads_num      := 1;
-
-    g_mltHist := new AccumBuff(0..width-1, 0..height-1);
-    g_mltFave := new FloatBuff(0..width-1, 0..height-1);
-    self.Clear;
+    self.mltHist := new AccumBuff(0..width-1, 0..height-1);
 
   end Init;
 
-  procedure Clear(self : MLTCopyImage) is
-  begin
-
-    for y in 0 .. height-1 loop
-      for x in 0 .. width-1 loop
-        g_mltHist(x,y) := (0.0, 0.0, 0.0);
-        g_mltFave(x,y) := 0.0;
-      end loop;
-    end loop;
-
-    g_brightnessEstim := 0.0;
-
-  end Clear;
 
   function PathTrace(self : MLTCopyImage; r : Ray; recursion_level : Integer) return PathResult is
+  begin
+    return ((0.0, 0.0, 0.0), false); -- not used
+  end PathTrace;
+
+
+  procedure DoPass(self : in out MLTCopyImage; colBuff : AccumBuffRef) is
+    r1 : Ray;
     x0,x1,y0,y1 : integer;
     Fx, Fy, Txy, Tyx, Axy : float;
     colorX, colorY : float3;
-    --histValue : float;
   begin
 
     if g_mltTestImage = null then
-      Put_Line("MLTCopyImage, src image is null");
-      return ((0.0, 0.0, 0.0), false);
+      Put_Line("MLTCopyImage::MLTSample, src image is null");
     end if;
 
-    x0 := integer(rnd_uniform(r.gen, 0.0, float(width-1)));
-    x1 := integer(rnd_uniform(r.gen, 0.0, float(height-1)));
+    -- initialisation part
+    --
+    self.brightnessEstim := 0.0;
+
+    for y in 0 .. height-1 loop
+      for x in 0 .. width-1 loop
+        self.mltHist(x,y) := (0.0, 0.0, 0.0);
+        self.brightnessEstim := self.brightnessEstim + Luminance(g_mltTestImage(x,y));
+      end loop;
+    end loop;
+
+    self.brightnessEstim := self.brightnessEstim/( float(width*height) );
+
+
+    ----------------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------
+
+    -- MLT algorithm begin
+    --
+    x0 := integer(self.gen.rnd_uniform(0.0, float(width-1)));
+    x1 := integer(self.gen.rnd_uniform(0.0, float(height-1)));
 
     -- Create an initial sample point
     --
     colorX := g_mltTestImage(x0, x1);
     Fx     := Luminance(colorX);
     colorX := colorX*(1.0/Fx);
-
-    g_brightnessEstim := g_brightnessEstim + Fx; -- estimate average brightness
 
     -- In this example, the tentative transition function T simply chooses
     -- a random pixel location, so Txy and Tyx are always equal.
@@ -756,10 +624,10 @@ package body Ray_Tracer is
 
     -- Create a histogram of values using Metropolis sampling.
     --
-    for i in 1 .. g_mltMutations loop
+    for i in 1 .. (width*height*self.mutationsPerPixel) loop
 
-      y0 := integer(rnd_uniform(r.gen, 0.0, float(width-1)));
-      y1 := integer(rnd_uniform(r.gen, 0.0, float(height-1)));
+      y0 := integer(self.gen.rnd_uniform(0.0, float(width-1)));
+      y1 := integer(self.gen.rnd_uniform(0.0, float(height-1)));
 
       colorY := g_mltTestImage(y0, y1);
       Fy     := Luminance(colorY);
@@ -767,102 +635,238 @@ package body Ray_Tracer is
 
       Axy := min(1.0, (Fy * Txy) / (Fx * Tyx));
 
-      if rnd_uniform(r.gen, 0.0, 1.0) < Axy then
+      if self.gen.rnd_uniform(0.0, 1.0) < Axy then
         x0 := y0; x1 := y1;
         Fx := Fy;
         colorX := colorY;
       end if;
 
-      g_mltHist(x0,x1) := g_mltHist(x0,x1) + colorX;
-      g_mltFave(x0,x1) := g_mltFave(x0,x1) + Fx; -- estimate overall brigthtess per pixel
+      self.mltHist(x0,x1) := self.mltHist(x0,x1) + colorX;
 
     end loop;
+    --
+    -- MLT algorithm end
 
-    return ((0.0, 0.0, 0.0), false); -- not used because of MLTCopyAndScaleTestImage
+    ----------------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------
+
+
+
+    -- now scale histogram to obtain final image
+    --
+    for y in 0 .. height-1 loop
+      for x in 0 .. width-1 loop
+        colBuff(x,y) := self.mltHist(x,y)*(1.0/float(self.mutationsPerPixel))*self.brightnessEstim;
+      end loop;
+    end loop;
+
+  end DoPass;
+
+
+
+  -- attempt to make simple MLT working
+  --
+  function PathTrace(self : MLTSimple; r : Ray; recursion_level : Integer) return PathResult is
+    res_color : float3 := (0.0, 0.0, 0.0);
+    hit_pos,bxdf,refl,trans : float3;
+    h : Hit;
+    nextRay : Ray := r;
+    ksi : float;
+    sign : float := 1.0;
+    ksitrans,ksirefl : float;
+  begin
+
+    if recursion_level = 0 then
+      return ((0.0, 0.0, 0.0), false);
+    end if;
+
+    h := Intersections.FindClosestHit(r);
+
+    if not h.is_hit then
+      return ((0.0, 0.0, 0.0), false);
+    elsif IsLight(h.mat) then
+      if dot(r.direction, (0.0,1.0,0.0)) < 0.0 then
+        return ((0.0, 0.0, 0.0), false);
+      else
+        return (Emittance(h.mat), true);
+      end if;
+    end if;
+
+    hit_pos := (r.origin + r.direction*h.t);
+
+    -- pick up next ray
+    --
+    if length(h.mat.reflection) > 0.0 and not h.mat.fresnel then -- specular reflection
+      nextRay.direction := reflect(r.direction, h.normal);
+      nextRay.origin    := hit_pos + epsilon*h.normal;
+      bxdf              := h.mat.reflection;
+    elsif h.mat.fresnel then -- reflection or transmittion
+
+      refl  := h.mat.reflection;
+      trans := h.mat.transparency;
+      ApplyFresnel(h.mat, dot(r.direction, h.normal), refl, trans);
+
+      ksitrans := length(trans) / (length(refl) + length(trans));
+      ksirefl  := length(refl) / (length(refl) + length(trans));
+
+      ksi := self.gen.rnd_uniform(0.0, 1.0);
+
+      if ksi > ksitrans then
+        nextRay.direction := reflect(r.direction, h.normal);
+        nextRay.origin    := hit_pos + epsilon*h.normal;
+        bxdf              := refl*(1.0/ksirefl);
+      else
+        bxdf              := trans*(1.0/ksitrans);
+        if not TotalInternalReflection(h.mat.ior, r.direction, h.normal) then
+          if dot(h.normal, r.direction) > 0.0 then
+            sign := -1.0;
+          end if;
+	  refract(h.mat.ior, r.direction, h.normal, wt => nextRay.direction);
+          nextRay.origin := hit_pos - epsilon*sign*h.normal;
+        else
+          nextRay.direction := reflect(r.direction, h.normal);
+          nextRay.origin    := hit_pos + epsilon*h.normal;
+        end if;
+
+      end if;
+
+    else  -- diffuse reflection
+      nextRay.direction := RandomCosineVectorOf(self.gen, h.normal);
+      nextRay.origin    := hit_pos + epsilon*h.normal;
+      bxdf := h.mat.kd;
+    end if;
+
+    return (bxdf*self.PathTrace(nextRay, recursion_level-1).color, false);
 
   end PathTrace;
 
 
-  procedure MLTCopyAndScaleTestImage(self : MLTCopyImage; colBuff : out AccumBuff) is
-    scale : float;
+  procedure DoPass(self : in out MLTSimple; colBuff : AccumBuffRef) is
+    r : Ray;
+    x0,x1,y0,y1 : integer;
+    Fx, Fy, Txy, Tyx, Axy : float;
+    colorX, colorY : float3;
   begin
 
-    scale := g_brightnessEstim/(float(width*height));
+    if g_mltTestImage = null then
+      Put_Line("MLTCopyImage::MLTSample, src image is null");
+    end if;
+
+    -- initialisation part
+    --
+    self.brightnessEstim := 0.0;
 
     for y in 0 .. height-1 loop
       for x in 0 .. width-1 loop
-
-        colBuff(x,y) := g_mltHist(x,y)*(1.0/float(g_mltMutations))*scale;
-        --colBuff(x,y) := g_mltHist(x,y)*sqr(1.0/float(g_mltMutations))*g_mltFave(x,y);
-
-        --colBuff(x,y) := g_mltTestImage(x,y);
-
-        --tmp := Luminance(g_mltTestImage(x,y));
-        --colBuff(x,y) := (tmp,tmp,tmp);
-
+        self.mltHist(x,y) := (0.0, 0.0, 0.0);
+        --self.brightnessEstim := self.brightnessEstim + Luminance(g_mltTestImage(x,y));
       end loop;
     end loop;
 
-    --Put("scale = "); Put(float'image(scale)); Put_Line("");
+    self.brightnessEstim := 0.25; --self.brightnessEstim/( float(width*height) );
 
-  end MLTCopyAndScaleTestImage;
+    r.origin := g_cam.pos;
+
+    ----------------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------
+
+    -- MLT algorithm begin
+    --
+    x0 := integer(self.gen.rnd_uniform(0.0, float(width-1)));
+    x1 := integer(self.gen.rnd_uniform(0.0, float(height-1)));
+
+    r.direction  := EyeRayDirection(x0,x1);
+    r.direction  := normalize(g_cam.matrix*r.direction);
+
+    -- Create an initial sample point
+    --
+    colorX := self.PathTrace(r, max_depth).color;
+    Fx     := Luminance(colorX);
+    colorX := colorX*(1.0/Fx);
+
+    -- In this example, the tentative transition function T simply chooses
+    -- a random pixel location, so Txy and Tyx are always equal.
+    --
+    Txy := 1.0/(float(width)*float(height));
+    Tyx := 1.0/(float(width)*float(height));
+
+    -- Create a histogram of values using Metropolis sampling.
+    --
+    for i in 1 .. (width*height*self.mutationsPerPixel) loop
+
+      y0 := integer(self.gen.rnd_uniform(0.0, float(width-1)));
+      y1 := integer(self.gen.rnd_uniform(0.0, float(height-1)));
+
+      r.direction  := EyeRayDirection(y0,y1);
+      r.direction  := normalize(g_cam.matrix*r.direction);
+
+      colorY := self.PathTrace(r, max_depth).color;
+      Fy     := Luminance(colorY);
+      colorY := colorY*(1.0/Fy);
+
+      Axy := min(1.0, (Fy * Txy) / (Fx * Tyx));
+
+      if self.gen.rnd_uniform(0.0, 1.0) < Axy then
+        x0 := y0; x1 := y1;
+        Fx := Fy;
+        colorX := colorY;
+      end if;
+
+      self.mltHist(x0,x1) := self.mltHist(x0,x1) + colorX;
+
+    end loop;
+    --
+    -- MLT algorithm end
+
+    ----------------------------------------------------------------------------------
+    ----------------------------------------------------------------------------------
+
+
+
+    -- now scale histogram to obtain final image
+    --
+    for y in 0 .. height-1 loop
+      for x in 0 .. width-1 loop
+        colBuff(x,y) := self.mltHist(x,y)*(1.0/float(self.mutationsPerPixel))*self.brightnessEstim; -- (1.0/float(g_mltMutations))
+      end loop;
+    end loop;
+
+  end DoPass;
+
+
+
+
+
 
 
   -- multithread stuff
   --
   task body Path_Trace_Thread is
-    r : Ray;
-    rayDirs : RayDirPack;
-    color : float3;
     colBuff : AccumBuffRef;
-    mygen : RandRef := new RandomGenerator;
+    mygen   : RandRef := new RandomGenerator;
+    tracer  : IntegratorRef := null;
   begin
 
     colBuff := new AccumBuff(0..width-1, 0..height-1);
-
     Ada.Numerics.Float_Random.Reset(Gen => mygen.agen, Initiator => threadId*7 + threadId*threadId*13);
+
+    -- select integrator
+    --
+
+    --tracer := new SimplePathTracer;
+    --tracer := new PathTracerWithShadowRays;
+    --tracer := new PathTracerMIS;
+    --tracer := new MLTCopyImage;
+    tracer := new MLTSimple;
+
+    tracer.gen := mygen;
+    tracer.Init;
 
     while true loop
 
       accept Resume;
 
-      g_integrator.Clear; -- empty except for MLTCopyImage
-
-      for y in 0 .. height - 1 loop
-        for x in 0 .. width - 1 loop
-
-          r.x      := x; r.y := y;
-          r.origin := g_cam.pos;
-          r.gen    := mygen;
-
-          if anti_aliasing_on then
-
-            color := background_color;
-            Generate4RayDirections(x,y,rayDirs);
-
-            for i in 0 .. 3 loop
-              r.direction := normalize(g_cam.matrix*rayDirs(i));
-              color := color + g_integrator.PathTrace(r,max_depth).color;
-            end loop;
-
-            colBuff(x,y) := color*0.25;
-
-          else
-
-            r.x := x; r.y := y;
-            r.direction  := EyeRayDirection(x,y);
-            r.direction  := normalize(g_cam.matrix*r.direction);
-            colBuff(x,y) := g_integrator.PathTrace(r,max_depth).color;
-
-          end if;
-
-        end loop;
-      end loop;
-
-      -- empty in all cases except for MLTCopyImage
-      -- because copy image make histogram in separate buffer and it should be scaled and copyed to colBuff here
-      --
-      g_integrator.MLTCopyAndScaleTestImage(colBuff.all);
+      tracer.DoPass(colBuff);
 
       accept Finish (accBuff : AccumBuffRef; spp : IntRef) do
 
@@ -871,6 +875,7 @@ package body Ray_Tracer is
           c2 : float := 1.0 / (float(spp.all) + 1.0);
           r,g,b: float;
         begin
+
           for y in 0 .. height - 1 loop
             for x in 0 .. width - 1 loop
               accBuff(x,y) := c1*accBuff(x,y) + c2*colBuff(x,y);
@@ -883,21 +888,24 @@ package body Ray_Tracer is
           end loop;
 
           spp.all := spp.all + 1;
+
         end;
 
       end Finish;
 
     end loop;
 
-    delete(colBuff);
-    delete(mygen);
+    delete(colBuff); colBuff := null;
+    delete(mygen); mygen := null;
 
     exception
       when The_Error : others =>
-        Put_Line("Error raised in the thread:");
+
+      Put_Line("Error raised in the thread:");
         Put_Line(Ada.Exceptions.Exception_Name(The_Error));
         Put_Line(Ada.Exceptions.Exception_Message(The_Error));
-	Put_Line("");
+        Put_Line("");
+
         delete(colBuff);
         delete(mygen);
 
@@ -928,13 +936,6 @@ package body Ray_Tracer is
 
   procedure InitCornellBoxScene is
   begin
-
-    --Ada.Numerics.Float_Random.Reset(agen);
-
-    --for i in 0..10 loop
-    --  Put("rnd_unifom(0,1) = ");
-    --  Put_Line(float'image(rnd_unifom(dummyRef, 0.0, 1.0)));
-    --end loop;
 
     -- init materials
     --
@@ -972,7 +973,7 @@ package body Ray_Tracer is
     -- Light material
     --
     g_scn.materials(4).kd     := (0.0, 0.0, 0.0);
-    g_scn.materials(4).ka     := (5.0, 5.0, 5.0);
+    g_scn.materials(4).ka     := (20.0, 20.0, 20.0);
     g_light.intensity   := g_scn.materials(4).ka;
     g_light.surfaceArea := (g_light.boxMax.x - g_light.boxMin.x)*(g_light.boxMax.z - g_light.boxMin.z);
 
@@ -1024,15 +1025,6 @@ package body Ray_Tracer is
     g_cam.lookAt := (0.0, 0.0, 0.0);
     g_cam.up     := (0.0, 1.0, 0.0);
     g_cam.matrix := IdentityMatrix;
-
-    -- select integrator
-    --
-    --g_integrator := new SimplePathTracer;
-    --g_integrator := new PathTracerWithShadowRays;
-    g_integrator := new PathTracerMIS;
-    --g_integrator := new MLTCopyImage;
-
-    g_integrator.Init;
 
   end InitCornellBoxScene;
 

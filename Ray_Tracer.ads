@@ -4,6 +4,7 @@ with Ada.Assertions;
 with Vector_Math;
 with Materials;
 with Ada.Unchecked_Deallocation;
+limited private with Ray_Tracer.Integrators; -- just want to put Integrators to another package
 
 use Interfaces;
 use Vector_Math;
@@ -18,7 +19,7 @@ package Ray_Tracer is
   threads_num : Positive := 8;
 
   compute_shadows  : boolean  := true;
-  anti_aliasing_on : boolean  := false;
+  anti_aliasing_on : boolean  := true;
   max_depth        : Positive := 8;
 
   background_color : float3   := (0.0,0.0,0.0);
@@ -150,9 +151,16 @@ private
   end record;
 
   procedure regenerateSequence(gen : RandomGenerator);
+
   function rnd_uniform(gen : RandomGenerator; l,h : float) return float;
+  function rnd_uniform_dispatch(gen : RandomGenerator; l,h : float) return float;
+  function rnd_uniform_simple(gen : RandomGenerator; l,h : float) return float;
+
+  function RandomCosineVectorOf(gen : RandomGenerator; norm : float3) return float3;
+  function MapSampleToCosineDist(r1,r2 : float; direction, normal : float3; power : float) return float3;
 
   type RandRef is access all RandomGenerator;
+
 
 
 
@@ -177,79 +185,6 @@ private
   procedure delete is new Ada.Unchecked_Deallocation(Object => FloatBuff, Name => FloatBuffRef);
   procedure delete is new Ada.Unchecked_Deallocation(Object => Spheres_Array, Name => Spheres_Array_Ptr);
   procedure delete is new Ada.Unchecked_Deallocation(Object => Path_Trace_Thread, Name => Path_Trace_Thread_Ptr);
-
-  ---------------------------------------------------------------------------------------------------------------------------------------------
-  ---------------------------------------------------------------------------------------------------------------------------------------------
-  ---------------------------------------------------------------------------------------------------------------------------------------------
-
-  type PathResult is record
-    color    : float3  := (0.0, 0.0, 0.0);
-    hitLight : boolean := false;
-  end record;
-
-
-  -- integrators
-  --
-  type Integrator is abstract tagged record
-    gen : RandRef := null;
-  end record;
-
-  type IntegratorRef is access Integrator'Class;
-
-  function PathTrace(self : Integrator; r : Ray; recursion_level : Integer) return PathResult is abstract;
-  procedure Init(self : in out Integrator) is abstract;
-  procedure DoPass(self : in out Integrator; colBuff : AccumBuffRef);
-
-
-
-  -- stupid path tracer
-  --
-  type SimplePathTracer is new Integrator with null record;
-
-  procedure Init(self : in out SimplePathTracer);
-  function PathTrace(self : SimplePathTracer; r : Ray; recursion_level : Integer) return PathResult;
-
-  -- path tracer with shadow rays
-  --
-  type PathTracerWithShadowRays is new Integrator with null record;
-
-  procedure Init(self : in out PathTracerWithShadowRays);
-  function PathTrace(self : PathTracerWithShadowRays; r : Ray; recursion_level : Integer) return PathResult;
-
-
-  -- path tracer with MIS
-  --
-  type PathTracerMIS is new Integrator with null record;
-
-  procedure Init(self : in out PathTracerMIS);
-  function PathTrace(self : PathTracerMIS; r : Ray; recursion_level : Integer) return PathResult;
-
-
-  -- simple MLT implementation copying image
-  --
-  type MLTCopyImage is new Integrator with record
-    mltHist : AccumBuffRef  := null;
-    brightnessEstim : float := 0.0;
-    mutationsPerPixel : integer := g_mltMutationsPerPixel;
-  end record;
-
-  procedure Init(self : in out MLTCopyImage);
-  function PathTrace(self : MLTCopyImage; r : Ray; recursion_level : Integer) return PathResult;
-
-  procedure DoPass(self : in out MLTCopyImage; colBuff : AccumBuffRef);
-
-
-  -- MLT path tracing; no shadow rays, no MIS
-  --
-  type MLTSimple is new MLTCopyImage with null record;
-
-  function PathTrace(self : MLTSimple; r : Ray; recursion_level : Integer) return PathResult;
-   procedure DoPass(self : in out MLTSimple; colBuff : AccumBuffRef);
-
-
-
-
-
 
 
 

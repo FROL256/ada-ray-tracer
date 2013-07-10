@@ -1,6 +1,7 @@
 with Ray_Tracer;
 with Ada.Numerics;
 with Ada.Numerics.Generic_Elementary_Functions;
+with Ray_Tracer;
 
 use Ada.Numerics;
 use Ray_Tracer;

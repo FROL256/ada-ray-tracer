@@ -142,16 +142,12 @@ package body Ray_Tracer is
 
   ---- this function is for path tracing parameters; it can be redefifed in further subclasses
   --
-  function rnd_uniform_dispatch(gen : RandomGenerator; l,h : float) return float is
-    t: float := 0.0;
+
+  function rnd_uniform(gen : access RandomGenerator; l,h : float) return float is
+    t : float;
   begin
     t := Ada.Numerics.Float_Random.Random(Gen => gen.agen);
     return l + (h-l)*t;
-  end rnd_uniform_dispatch;
-
-  function rnd_uniform(gen : RandomGenerator; l,h : float) return float is
-  begin
-    return rnd_uniform_dispatch(RandomGenerator'Class(gen), l, h);
   end rnd_uniform;
 
   ---- this function is used for simple random and must not be redefined
@@ -165,10 +161,27 @@ package body Ray_Tracer is
 
   ----
   --
-  procedure regenerateSequence(gen : RandomGenerator) is
+  procedure ResetSequenceCounter(gen : in out RandomGenerator) is
   begin
     null;
-  end regenerateSequence;
+  end ResetSequenceCounter;
+
+  procedure InitSequence(gen : in out RandomGenerator) is
+  begin
+    null;
+  end InitSequence;
+
+  procedure NextSample(gen           : in out RandomGenerator;
+                       I             : in float;
+                       oldI          : in out float;
+                       totalSamples  : in integer;
+                       contrib       : in float3;
+                       oldsample     : in out Sample;
+                       contribsample : out Sample) is
+  begin
+    null;
+  end NextSample;
+
 
 
   function MapSampleToCosineDist(r1,r2 : float; direction, normal : float3; power : float) return float3 is
@@ -209,7 +222,7 @@ package body Ray_Tracer is
 
   end MapSampleToCosineDist;
 
-  function RandomCosineVectorOf(gen : RandomGenerator; norm : float3) return float3 is
+  function RandomCosineVectorOf(gen : access RandomGenerator; norm : float3) return float3 is
     r1 : float := gen.rnd_uniform(0.0, 1.0);
     r2 : float := gen.rnd_uniform(0.0, 1.0);
   begin
@@ -280,7 +293,7 @@ package body Ray_Tracer is
     end loop;
 
     delete(colBuff); colBuff := null;
-    delete(mygen); mygen := null;
+    --delete(mygen); mygen := null;
 
     exception
       when The_Error : others =>
@@ -291,7 +304,7 @@ package body Ray_Tracer is
         Put_Line("");
 
         delete(colBuff);
-        delete(mygen);
+        --delete(mygen);
 
   end Path_Trace_Thread;
 

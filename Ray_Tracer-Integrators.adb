@@ -607,6 +607,19 @@ package body Ray_Tracer.Integrators is
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
   ----- Simple Kelmen Style MLT; no shadow rays, no MIS.
   --
 
@@ -614,54 +627,63 @@ package body Ray_Tracer.Integrators is
   begin
 
     self.mltHist := new AccumBuff(0..width-1, 0..height-1);
+    self.gen := new KMLT_Generator;
 
-
-    self.qmcGen := new QMC_KMLT_Generator;
-
-    if self.gen /= null then
-      delete(self.gen);
-    end if;
-    self.gen := RandRef( self.qmcGen );
+    --Put_Line("MLTKelmenSimple.Init");
 
   end Init;
 
-  function rnd_uniform_dispatch(gen : access QMC_KMLT_Generator; l,h : float) return float is
-    t: float := 0.0;
-  begin
-    t := Ada.Numerics.Float_Random.Random(Gen => gen.agen);
-    gen.top := gen.top+1;
-    Put("self.top = ");Put_Line(integer'Image(gen.top));
-    return l + (h-l)*t;
-  end rnd_uniform_dispatch;
 
-
-  procedure Push(self : in QMC_KMLT_Generator; i : in integer; val : in float) is
+  procedure Push(gen : in out KMLT_Generator; i : in integer; val : in float) is
   begin
-    null;
+
+    if gen.top < QMC_KMLT_MAXRANDS then
+      gen.indices_stack(gen.top) := i;
+      gen.values_stack(gen.top)  := val;
+      gen.top              := gen.top + 1;
+    else
+      Put_Line("KMLT_Generator, Stack overflow");
+      raise Constraint_Error;
+    end if;
+
   end Push;
 
 
-  procedure Pop(self : in QMC_KMLT_Generator; i : out integer; val : out float) is
+  procedure Pop(gen : in out KMLT_Generator; i : out integer; val : out float) is
   begin
-    null;
+
+    if gen.top > 0 then
+      gen.top := gen.top - 1;
+      i       := gen.indices_stack(gen.top);
+      val     := gen.values_stack(gen.top);
+    else
+      Put_Line("KMLT_Generator, Stack underflow");
+      raise Constraint_Error;
+    end if;
   end Pop;
 
-
-  procedure PrimarySample(self : in QMC_KMLT_Generator; res : out float) is
+  function  IsStackEmpty(gen : in KMLT_Generator) return boolean is
   begin
-    null;
-  end PrimarySample;
+    return (gen.top = 0);
+  end IsStackEmpty;
 
-  function Mutate(self : in MLTKelmenSimple; a_value : float) return float is
+  procedure ClearStack(gen : in out KMLT_Generator) is
+  begin
+    gen.top := 0;
+  end ClearStack;
+
+
+
+  function Mutate(gen : in KMLT_Generator; a_value : float) return float is
     s1,s2,dv,value : float;
   begin
 
     s1 := 1.0/1024.0;
     s2 := 1.0/64.0;
-    dv := s2*exp(-log(s2/s1)*self.gen.rnd_uniform_simple(0.0, 1.0));
+    dv := s2*exp(-log(s2/s1)*gen.rnd_uniform_simple(0.0, 1.0));
     value := a_value;
 
-    if self.gen.rnd_uniform_simple(0.0, 1.0) < 0.5 then
+    if gen.rnd_uniform_simple(0.0, 1.0) < 0.5 then
       value := value + dv;
       if value > 1.0 then
         value := value - 1.0;
@@ -676,9 +698,168 @@ package body Ray_Tracer.Integrators is
     return value;
   end Mutate;
 
-
-
+  -- Let us define a counter called 'time' for the global time of
+  -- the process which counts the number of accepted mutations.
+  -- Each coordinate is associated with a time-stamp called 'modify'
+  -- that stores the global time when this coordinate was modified
+  -- most recently. The time of the last accepted large step is
+  -- stored in variable large_step_time. When a new coordinate is
+  -- needed, it is checked whether this coordinate has been used
+  -- before. If not, it is initialized as a random number and its
+  -- time stamp is set to large_step_time. If it has already been
+  -- used, the value of the coordinate was set at time modify. Then
+  -- the coordinate is perturbed by time modify times.
   --
+  procedure PrimarySample(gen : in out KMLT_Generator; i : in integer; time : in integer; res : out float) is
+  begin
+
+    if gen.modify(i) < time then
+
+      if gen.large_step = 1 then    -- large srep
+        gen.Push(i, gen.values(i)); -- save state
+        gen.modify(i) := time;
+        gen.values(i) := gen.rnd_uniform_simple(0.0, 1.0);
+      else                          -- small step
+
+        if gen.modify(i) < gen.large_step_time then
+          gen.modify(i) := gen.large_step_time;
+          gen.values(i) := gen.rnd_uniform_simple(0.0, 1.0);
+        end if;
+
+        -- lazy evaluation of mutations
+        --
+        while gen.modify(i) < time-1 loop
+          gen.values(i) := Mutate(gen, gen.values(i));
+          gen.modify(i) := gen.modify(i) + 1;
+        end loop;
+
+        -- save state
+        --
+       gen.Push(i, gen.values(i));
+       gen.values(i) := Mutate(gen, gen.values(i));
+       gen.modify(i) := gen.modify(i) + 1;
+
+      end if;
+    end if;
+
+    res := gen.values(i);
+
+  end PrimarySample;
+
+  -- override our rnd_uniform used for sample evaluation
+  --
+  function rnd_uniform(gen : access KMLT_Generator; l,h : float) return float is
+    t: float := 0.0;
+  begin
+    --t := Ada.Numerics.Float_Random.Random(Gen => gen.agen);
+    PrimarySample(gen.all, gen.u_id, gen.time, t);
+    gen.u_id := gen.u_id + 1;
+    return l + (h-l)*t;
+  end rnd_uniform;
+
+  procedure ResetSequenceCounter(gen : in out KMLT_Generator) is
+    --t : float;
+  begin
+    --for i in 0 .. QMC_KMLT_MAXRANDS-1 loop
+    --  t := Ada.Numerics.Float_Random.Random(Gen => gen.agen);
+    --  gen.values(i)  := t;
+    --end loop;
+    gen.u_id := 0;
+  end ResetSequenceCounter;
+
+  procedure InitSequence(gen : in out KMLT_Generator) is
+    t : float;
+  begin
+    for i in 0 .. QMC_KMLT_MAXRANDS-1 loop
+      t := Ada.Numerics.Float_Random.Random(Gen => gen.agen);
+      gen.values(i)  := t;
+    end loop;
+    gen.u_id := 0;
+  end  InitSequence;
+
+
+  -- The following Next function
+  -- handles both rejected and accepted samples, but returns
+  -- only one of them to be contributed to the affected pixel. If
+  -- rejection happens, the returned sample is the rejected one,
+  -- since it will be invalid in the next cycle. However, if the sample
+  -- is accepted, then the contributed sample is the old sample
+  -- while the weight of the new sample will be increased in the
+  -- next cycle. The function gets the affected pixel and its contribution
+  -- F*(u) in variable contrib, and the transformed
+  -- scalar contribution I*(u) in variable I
+  --
+
+  procedure NextSample(gen           : in out KMLT_Generator;
+                       I             : in float;
+                       oldI          : in out float;
+                       totalSamples  : in integer;
+                       contrib       : in float3;
+                       oldsample     : in out Sample;
+                       contribsample : out Sample) is
+
+    a         : float;
+    newsample : Sample;
+
+    b         : float := 0.25;
+    plarge    : float := 1.0/float(gen.large_step_time);
+    M         : float := float(totalSamples);
+
+    ix : integer := 0;   -- temp
+    ui : float   := 0.0; -- temp
+
+  begin
+
+    if oldI = 0.0 then
+      a := 1.0;
+    else
+      a := min(1.0, I/oldI);
+    end if;
+
+    newsample.contrib := contrib;
+    newsample.w := (a + float(gen.large_step))/(I/b+plarge)/M;
+
+    oldsample.w := oldsample.w + (1.0-a)/(oldI/b+plarge)/M;       -- cumulate weight
+
+    if gen.rnd_uniform_simple(0.0, 1.0) < a then -- accept
+
+      oldI          := I;
+      contribsample := oldsample;
+      oldsample     := newsample;
+
+      if gen.large_step = 1 then
+        gen.large_step_time := gen.time;
+      end if;
+
+      gen.time := gen.time + 1;
+      ClearStack(gen);                   -- no state restoration
+
+    else
+
+      contribsample := newsample;
+
+      while not IsStackEmpty(gen) loop   -- restore state
+        gen.Pop(ix, ui);
+        gen.values(ix) := ui;
+      end loop;
+
+    end if;
+
+    -- decide wherther 'next after this-next' sample will be large or not
+    --
+    if gen.rnd_uniform_simple(0.0, 1.0) < plarge then
+      gen.large_step := 1;
+    else
+      gen.large_step := 0;
+    end if;
+
+  end NextSample;
+
+
+
+
+
+  -- just call SimplePathTracer's implementation
   --
   function PathTrace(self : MLTKelmenSimple; r : Ray; recursion_level : Integer) return PathResult is
   begin
@@ -689,8 +870,10 @@ package body Ray_Tracer.Integrators is
   procedure DoPass(self : in out MLTKelmenSimple; colBuff : AccumBuffRef) is
     r : Ray;
     x0,x1,y0,y1 : integer;
-    Fx, Fy, Txy, Tyx, Axy : float;
+    Fx, Fy : float;
     colorX, colorY : float3;
+    oldsample : Sample := ((0.0, 0.0, 0.0), 0.0);
+    newsample : Sample := ((0.0, 0.0, 0.0), 0.0);
   begin
 
     if g_mltTestImage = null then
@@ -712,13 +895,15 @@ package body Ray_Tracer.Integrators is
 
     r.origin := g_cam.pos;
 
+    self.gen.InitSequence;
+
     ----------------------------------------------------------------------------------
     ----------------------------------------------------------------------------------
 
     -- MLT algorithm begin
     --
-    x0 := integer(self.gen.rnd_uniform(0.0, float(width-1)));
-    x1 := integer(self.gen.rnd_uniform(0.0, float(height-1)));
+    x0 := integer(self.gen.rnd_uniform_simple(0.0, float(width-1)));
+    x1 := integer(self.gen.rnd_uniform_simple(0.0, float(height-1)));
 
     r.direction  := EyeRayDirection(x0,x1);
     r.direction  := normalize(g_cam.matrix*r.direction);
@@ -729,15 +914,15 @@ package body Ray_Tracer.Integrators is
     Fx     := Luminance(colorX);
     colorX := colorX*(1.0/Fx);
 
-    -- In this example, the tentative transition function T simply chooses
-    -- a random pixel location, so Txy and Tyx are always equal.
-    --
-    Txy := 1.0/(float(width)*float(height));
-    Tyx := 1.0/(float(width)*float(height));
+    oldsample.contrib := colorX;
+    oldsample.w       := 1.0;
+    newsample := oldsample;
 
     -- Create a histogram of values using Metropolis sampling.
     --
     for i in 1 .. (width*height*self.mutationsPerPixel) loop
+
+      self.gen.ResetSequenceCounter;
 
       y0 := integer(self.gen.rnd_uniform(0.0, float(width-1)));
       y1 := integer(self.gen.rnd_uniform(0.0, float(height-1)));
@@ -749,15 +934,15 @@ package body Ray_Tracer.Integrators is
       Fy     := Luminance(colorY);
       colorY := colorY*(1.0/Fy);
 
-      Axy := min(1.0, (Fy * Txy) / (Fx * Tyx));
+      NextSample(gen           => RandomGenerator'Class(self.gen.all), -- don't fuck your mind with Ada83 and Ada95 dynamic dispatch syntax,
+                 I             => Fy,                                  -- it is the explicit form of Ada2005 'self.gen.NextSample(....)';
+                 oldI          => Fx,                                  -- just a call of 'virtual function'.
+                 totalSamples  => i,                                   -- i decided to put this 'old-fashioned' form here cause it is more explicit
+                 contrib       => colorY,                              --
+                 oldsample     => oldsample,
+                 contribsample => newsample);
 
-      if self.gen.rnd_uniform(0.0, 1.0) < Axy then
-        x0 := y0; x1 := y1;
-        Fx := Fy;
-        colorX := colorY;
-      end if;
-
-      self.mltHist(x0,x1) := self.mltHist(x0,x1) + colorX;
+      self.mltHist(x0,x1) := self.mltHist(x0,x1) + newsample.contrib*newsample.w;
 
     end loop;
     --

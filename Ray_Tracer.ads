@@ -143,23 +143,37 @@ private
   type RayDirPack is array (0 ..  3) of float3;
   procedure Generate4RayDirections (x, y : in Natural; arr : out RayDirPack);
 
-
   type IntRef is access integer;
 
+  -- rand gen
+  --
   type RandomGenerator is tagged limited record
     agen : Ada.Numerics.Float_Random.Generator;
   end record;
 
-  procedure regenerateSequence(gen : RandomGenerator);
+  procedure ResetSequenceCounter(gen : in out RandomGenerator);
+  procedure InitSequence(gen : in out RandomGenerator);
 
-  function rnd_uniform(gen : RandomGenerator; l,h : float) return float;
-  function rnd_uniform_dispatch(gen : RandomGenerator; l,h : float) return float;
+  function rnd_uniform(gen : access RandomGenerator; l,h : float) return float;
   function rnd_uniform_simple(gen : RandomGenerator; l,h : float) return float;
 
-  function RandomCosineVectorOf(gen : RandomGenerator; norm : float3) return float3;
+  function RandomCosineVectorOf(gen : access RandomGenerator; norm : float3) return float3;
   function MapSampleToCosineDist(r1,r2 : float; direction, normal : float3; power : float) return float3;
 
-  type RandRef is access all RandomGenerator;
+  type Sample is record
+    contrib : float3 :=(0.0, 0.0, 0.0);
+    w       : float  := 0.0;
+  end record;
+
+  procedure NextSample(gen           : in out RandomGenerator;
+                       I             : in float;
+                       oldI          : in out float;
+                       totalSamples  : in integer;
+                       contrib       : in float3;
+                       oldsample     : in out Sample;
+                       contribsample : out Sample);
+
+  type RandRef is access all RandomGenerator'Class;
 
 
 
@@ -179,7 +193,7 @@ private
   ---- instantiate deallocation procedures
   --
   procedure delete is new Ada.Unchecked_Deallocation(Object => ScreenBufferData, Name => ScreenBufferDataRef);
-  procedure delete is new Ada.Unchecked_Deallocation(Object => RandomGenerator, Name => RandRef);
+  --procedure delete is new Ada.Unchecked_Deallocation(Object => RandomGenerator, Name => RandRef);
   procedure delete is new Ada.Unchecked_Deallocation(Object => integer, Name => IntRef);
   procedure delete is new Ada.Unchecked_Deallocation(Object => AccumBuff, Name => AccumBuffRef);
   procedure delete is new Ada.Unchecked_Deallocation(Object => FloatBuff, Name => FloatBuffRef);

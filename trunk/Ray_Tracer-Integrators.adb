@@ -143,7 +143,7 @@ package body Ray_Tracer.Integrators is
       end if;
 
     else  -- diffuse reflection
-      nextRay.direction := self.gen.RandomCosineVectorOf(h.normal);
+      nextRay.direction := RandomCosineVectorOf(self.gen, h.normal);
       nextRay.origin    := hit_pos + epsilon*h.normal;
       bxdf := h.mat.kd;
     end if;
@@ -251,7 +251,7 @@ package body Ray_Tracer.Integrators is
       end if;
 
     else  -- diffuse reflection
-      nextRay.direction := self.gen.RandomCosineVectorOf(h.normal);
+      nextRay.direction := RandomCosineVectorOf(self.gen, h.normal);
       nextRay.origin    := hit_pos + epsilon*h.normal;
       bxdf := h.mat.kd;
     end if;
@@ -361,7 +361,7 @@ package body Ray_Tracer.Integrators is
       specularBounce    := true;
 
     else  -- diffuse reflection
-      nextRay.direction := self.gen.RandomCosineVectorOf(h.normal);
+      nextRay.direction := RandomCosineVectorOf(self.gen, h.normal);
       nextRay.origin    := hit_pos + epsilon*h.normal;
       bxdf              := h.mat.kd;
       specularBounce    := false;
@@ -656,6 +656,8 @@ package body Ray_Tracer.Integrators is
       gen.top := gen.top - 1;
       i       := gen.indices_stack(gen.top);
       val     := gen.values_stack(gen.top);
+      gen.indices_stack(gen.top) := 0;
+      gen.values_stack(gen.top)  := 0.0;
     else
       Put_Line("KMLT_Generator, Stack underflow");
       raise Constraint_Error;
@@ -669,9 +671,12 @@ package body Ray_Tracer.Integrators is
 
   procedure ClearStack(gen : in out KMLT_Generator) is
   begin
+    for i in 0 .. gen.top - 1 loop
+      gen.indices_stack(i) := 0;
+      gen.values_stack(i)  := 0.0;
+    end loop;
     gen.top := 0;
   end ClearStack;
-
 
 
   function Mutate(gen : in KMLT_Generator; a_value : float) return float is
@@ -712,6 +717,13 @@ package body Ray_Tracer.Integrators is
   --
   procedure PrimarySample(gen : in out KMLT_Generator; i : in integer; time : in integer; res : out float) is
   begin
+
+    -- copy-paste from Mitsuba
+    --
+    -- while (i >= m_u.size())
+    --   m_u.push_back(SampleStruct(m_random->nextFloat()));
+
+    gen.values(i) := gen.rnd_uniform_simple(0.0, 1.0);
 
     if gen.modify(i) < time then
 
@@ -758,24 +770,52 @@ package body Ray_Tracer.Integrators is
   end rnd_uniform;
 
   procedure ResetSequenceCounter(gen : in out KMLT_Generator) is
-    --t : float;
   begin
-    --for i in 0 .. QMC_KMLT_MAXRANDS-1 loop
-    --  t := Ada.Numerics.Float_Random.Random(Gen => gen.agen);
-    --  gen.values(i)  := t;
-    --end loop;
     gen.u_id := 0;
   end ResetSequenceCounter;
 
   procedure InitSequence(gen : in out KMLT_Generator) is
-    t : float;
   begin
-    for i in 0 .. QMC_KMLT_MAXRANDS-1 loop
-      t := Ada.Numerics.Float_Random.Random(Gen => gen.agen);
-      gen.values(i)  := t;
+
+    for i in 0 .. gen.u_id loop
+      gen.values(i) := 0.0;
     end loop;
+
     gen.u_id := 0;
+    gen.ClearStack;
+
+    --
+    --
+    for i in 0 .. QMC_KMLT_MAXRANDS-1 loop
+      gen.modify(i)  := 0;
+    end loop;
+
+    gen.time := 0;
+
   end  InitSequence;
+
+  procedure ResetAllModifyCounters(gen : in out KMLT_Generator) is
+  begin
+
+    for i in 0 .. QMC_KMLT_MAXRANDS-1 loop
+      gen.modify(i) := 0;
+    end loop;
+
+    gen.time := 0; -- ???
+
+  end ResetAllModifyCounters;
+
+  procedure RestoreSequence(gen : in out KMLT_Generator) is
+    ix : integer := 0;   -- temp
+    ui : float   := 0.0; -- temp
+  begin
+
+    while not IsStackEmpty(gen) loop   -- restore state
+      gen.Pop(ix, ui);
+      gen.values(ix) := ui;
+    end loop;
+
+  end  RestoreSequence;
 
 
   -- The following Next function
@@ -802,7 +842,7 @@ package body Ray_Tracer.Integrators is
     newsample : Sample;
 
     b         : float := 0.25;
-    plarge    : float := 1.0/float(gen.large_step_time);
+    plarge    : float := 1.0/4.0;
     M         : float := float(totalSamples);
 
     ix : integer := 0;   -- temp
@@ -837,11 +877,7 @@ package body Ray_Tracer.Integrators is
     else
 
       contribsample := newsample;
-
-      while not IsStackEmpty(gen) loop   -- restore state
-        gen.Pop(ix, ui);
-        gen.values(ix) := ui;
-      end loop;
+      gen.RestoreSequence;
 
     end if;
 
@@ -870,15 +906,23 @@ package body Ray_Tracer.Integrators is
   procedure DoPass(self : in out MLTKelmenSimple; colBuff : AccumBuffRef) is
     r : Ray;
     x0,x1,y0,y1 : integer;
-    Fx, Fy : float;
-    colorX, colorY : float3;
+    Fx, Fy : float  := 0.0;
+    colorX : float3 := (0.0, 0.0, 0.0);
+    colorY : float3 := (0.0, 0.0, 0.0);
     oldsample : Sample := ((0.0, 0.0, 0.0), 0.0);
     newsample : Sample := ((0.0, 0.0, 0.0), 0.0);
-  begin
 
-    if g_mltTestImage = null then
-      Put_Line("MLTCopyImage::MLTSample, src image is null");
-    end if;
+    test1 : float   := self.gen.values(0);
+    test2 : float   := self.gen.values_stack(0);
+    test3 : integer := self.gen.indices_stack(0);
+    test4 : integer := self.gen.u_id;
+    test5 : integer := self.gen.top;
+    test6 : integer := self.gen.time;
+    test7 : integer := self.gen.large_step;
+    test8 : integer := self.gen.large_step_time;
+    test9 : integer := self.gen.modify(0);
+
+  begin
 
     -- initialisation part
     --
@@ -895,28 +939,46 @@ package body Ray_Tracer.Integrators is
 
     r.origin := g_cam.pos;
 
-    self.gen.InitSequence;
 
     ----------------------------------------------------------------------------------
     ----------------------------------------------------------------------------------
-
-    -- MLT algorithm begin
-    --
-    x0 := integer(self.gen.rnd_uniform_simple(0.0, float(width-1)));
-    x1 := integer(self.gen.rnd_uniform_simple(0.0, float(height-1)));
-
-    r.direction  := EyeRayDirection(x0,x1);
-    r.direction  := normalize(g_cam.matrix*r.direction);
 
     -- Create an initial sample point
     --
-    colorX := self.PathTrace(r, max_depth).color;
-    Fx     := Luminance(colorX);
-    colorX := colorX*(1.0/Fx);
+    Fx := 0.0;
+
+    while (Fx <= 0.0) or (Fx >= 20.0) loop
+
+      self.gen.InitSequence;
+
+      x0 := integer(self.gen.rnd_uniform(0.0, float(width-1)));
+      x1 := integer(self.gen.rnd_uniform(0.0, float(height-1)));
+
+      r.direction  := EyeRayDirection(x0,x1);
+      r.direction  := normalize(g_cam.matrix*r.direction);
+
+      colorX := self.PathTrace(r, max_depth).color;
+      Fx     := Luminance(colorX);
+
+    end loop;
+
+    if Fx > 0.0 then
+      colorX := colorX*(1.0/Fx);
+    else
+      colorX := (0.0, 0.0, 0.0);
+    end if;
+
 
     oldsample.contrib := colorX;
     oldsample.w       := 1.0;
-    newsample := oldsample;
+
+    newsample.contrib := (0.0, 0.0, 0.0);
+    newsample.w       := 0.0;
+
+    -- prepare for main part
+    --
+    self.gen.ClearStack;
+    self.gen.ResetAllModifyCounters;
 
     -- Create a histogram of values using Metropolis sampling.
     --
@@ -932,7 +994,11 @@ package body Ray_Tracer.Integrators is
 
       colorY := self.PathTrace(r, max_depth).color;
       Fy     := Luminance(colorY);
-      colorY := colorY*(1.0/Fy);
+      if Fy > 0.0 then
+        colorY := colorY*(1.0/Fy);
+      else
+        colorY := (0.0, 0.0, 0.0);
+      end if;
 
       NextSample(gen           => RandomGenerator'Class(self.gen.all), -- don't fuck your mind with Ada83 and Ada95 dynamic dispatch syntax,
                  I             => Fy,                                  -- it is the explicit form of Ada2005 'self.gen.NextSample(....)';
@@ -942,7 +1008,8 @@ package body Ray_Tracer.Integrators is
                  oldsample     => oldsample,
                  contribsample => newsample);
 
-      self.mltHist(x0,x1) := self.mltHist(x0,x1) + newsample.contrib*newsample.w;
+      self.mltHist(x0,x1) := self.mltHist(x0,x1) + newsample.contrib*newsample.w*10.0;
+
 
     end loop;
     --

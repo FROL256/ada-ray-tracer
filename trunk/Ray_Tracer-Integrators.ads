@@ -88,34 +88,7 @@ private package Ray_Tracer.Integrators is
   procedure DoPass(self : in out MLTSimple; colBuff : AccumBuffRef);
 
 
-  -- this random generator should replace simple random for Kelmen-style MLT
-  --
-  QMC_KMLT_MAXRANDS : constant := 32;
-  type vector32i is array (0..QMC_KMLT_MAXRANDS-1) of integer;
-  type vector32f is array (0..QMC_KMLT_MAXRANDS-1) of float;
-
-
-  type KMLT_Generator is new RandomGenerator with record
-
-    -- samples array
-    --
-    modify  : vector32i := (others => 0); -- stores the global time when this coordinate was modified most recently
-    values  : vector32f := (others => 0.0);
-    u_id    : integer   := 0;
-
-    -- samples atack
-    --
-    indices_stack : vector32i := (others => 0);
-    values_stack  : vector32f := (others => 0.0);
-    top           : integer   := 0;
-
-    -- 'global' variables
-    --
-    time    : integer   := 1;             -- Let us define a counter called time for the global time of the process which counts the number of accepted mutations
-    large_step : integer:= 1;             -- variable large_step is 1 if a large step is made and zero otherwise
-    large_step_time : integer := 32;      -- The time of the last accepted large step is stored in variable large_step_time
-
-  end record;
+  type KMLT_Generator is new RandomGenerator with null record;
 
   function rnd_uniform(gen : access KMLT_Generator; l,h : float) return float;
   procedure ResetSequenceCounter(gen : in out KMLT_Generator);
@@ -126,6 +99,8 @@ private package Ray_Tracer.Integrators is
   procedure Push(gen : in out KMLT_Generator; i : in integer; val : in float);
   procedure Pop(gen : in out KMLT_Generator; i : out integer; val : out float);
   procedure ClearStack(gen : in out KMLT_Generator);
+  procedure RestoreSequence(gen : in out KMLT_Generator);
+  procedure ResetAllModifyCounters(gen : in out KMLT_Generator);
 
 
   function  Mutate(gen : in KMLT_Generator; a_value : float) return float;

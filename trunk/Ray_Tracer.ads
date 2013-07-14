@@ -16,7 +16,7 @@ package Ray_Tracer is
   width  : Positive := 800;
   height : Positive := 600;
 
-  threads_num : Positive := 8;
+  threads_num : Positive := 1;
 
   compute_shadows  : boolean  := true;
   anti_aliasing_on : boolean  := true;
@@ -147,17 +147,46 @@ private
 
   -- rand gen
   --
+
+  -- this random generator should replace simple random for Kelmen-style MLT
+  --
+  QMC_KMLT_MAXRANDS : constant := 32;
+  type vector32i is array (0..QMC_KMLT_MAXRANDS-1) of integer;
+  type vector32f is array (0..QMC_KMLT_MAXRANDS-1) of float;
+
   type RandomGenerator is tagged limited record
+
     agen : Ada.Numerics.Float_Random.Generator;
+
+    -- samples array
+    --
+    modify  : vector32i := (others => 0); -- stores the global time when this coordinate was modified most recently
+    values  : vector32f := (others => 0.0);
+    u_id    : integer   := 0;
+
+    -- samples atack
+    --
+    indices_stack : vector32i := (others => 0);
+    values_stack  : vector32f := (others => 0.0);
+    top           : integer   := 0;
+
+    -- 'global' variables
+    --
+    time    : integer   := 1;            -- Let us define a counter called time for the global time of the process which counts the number of accepted mutations
+    large_step : integer:= 1;            -- variable large_step is 1 if a large step is made and zero otherwise
+    large_step_time : integer := 1;      -- The time of the last accepted large step is stored in variable large_step_time
+
   end record;
 
   procedure ResetSequenceCounter(gen : in out RandomGenerator);
   procedure InitSequence(gen : in out RandomGenerator);
+  procedure RestoreSequence(gen : in out RandomGenerator);
+  procedure ClearStack(gen : in out RandomGenerator);
+  procedure ResetAllModifyCounters(gen : in out RandomGenerator);
 
   function rnd_uniform(gen : access RandomGenerator; l,h : float) return float;
   function rnd_uniform_simple(gen : RandomGenerator; l,h : float) return float;
 
-  function RandomCosineVectorOf(gen : access RandomGenerator; norm : float3) return float3;
   function MapSampleToCosineDist(r1,r2 : float; direction, normal : float3; power : float) return float3;
 
   type Sample is record
@@ -175,7 +204,7 @@ private
 
   type RandRef is access all RandomGenerator'Class;
 
-
+  function RandomCosineVectorOf(gen : RandRef; norm : float3) return float3;
 
 
   -- multithreaded rendering stuff

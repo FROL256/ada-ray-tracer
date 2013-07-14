@@ -182,6 +182,21 @@ package body Ray_Tracer is
     null;
   end NextSample;
 
+  procedure RestoreSequence(gen : in out RandomGenerator) is
+  begin
+    null;
+  end  RestoreSequence;
+
+  procedure ClearStack(gen : in out RandomGenerator) is
+  begin
+    null;
+  end ClearStack;
+
+  procedure ResetAllModifyCounters(gen : in out RandomGenerator) is
+  begin
+    null;
+  end ResetAllModifyCounters;
+
 
 
   function MapSampleToCosineDist(r1,r2 : float; direction, normal : float3; power : float) return float3 is
@@ -222,7 +237,7 @@ package body Ray_Tracer is
 
   end MapSampleToCosineDist;
 
-  function RandomCosineVectorOf(gen : access RandomGenerator; norm : float3) return float3 is
+  function RandomCosineVectorOf(gen : RandRef; norm : float3) return float3 is
     r1 : float := gen.rnd_uniform(0.0, 1.0);
     r2 : float := gen.rnd_uniform(0.0, 1.0);
   begin

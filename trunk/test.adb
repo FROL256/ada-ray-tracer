@@ -77,11 +77,12 @@ begin
 
    -- load datasets from files
    --
-   if Ray_Tracer.width = 800 and Ray_Tracer.height = 600 then
-     g_mltTestImage := new Ray_Tracer.AccumBuff(0..Ray_Tracer.width-1, 0..Ray_Tracer.height-1);
-     Gdk_New_From_File(imgbuff, "tiger_800x600.jpg", saveErr);
-     ConvertGdkPixbufToFloat3Array(imgbuff, g_mltTestImage.all, Ray_Tracer.width, Ray_Tracer.height);
-   end if;
+
+  --if Ray_Tracer.width = 800 and Ray_Tracer.height = 600 then
+   --  g_mltTestImage := new Ray_Tracer.AccumBuff(0..Ray_Tracer.width-1, 0..Ray_Tracer.height-1);
+   --  Gdk_New_From_File(imgbuff, "tiger_800x600.jpg", saveErr);
+   --  ConvertGdkPixbufToFloat3Array(imgbuff, g_mltTestImage.all, Ray_Tracer.width, Ray_Tracer.height);
+   --end if;
 
    Put_Line("render start");
    Put("threads_num = "); Put(integer'Image(Ray_Tracer.threads_num)); Put_Line("");

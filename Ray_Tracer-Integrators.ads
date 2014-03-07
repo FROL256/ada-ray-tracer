@@ -20,6 +20,8 @@ private package Ray_Tracer.Integrators is
 
   type PathResult is record
     color    : float3  := (0.0, 0.0, 0.0);
+    dist     : float   := 0.0;
+    lightCos : float   := 0.0;
     hitLight : boolean := false;
   end record;
 
@@ -119,7 +121,7 @@ private package Ray_Tracer.Integrators is
   -- simple Kelmen style MLT; no shadow rays, no MIS
   --
 
-  type MLTKelmenSimple is new SimplePathTracer with record
+  type MLTKelmenSimple is new PathTracerMIS with record
     mltHist : AccumBuffRef  := null;
     brightnessEstim : float := 0.0;
     mutationsPerPixel : integer := g_mltMutationsPerPixel;

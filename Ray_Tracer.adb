@@ -104,22 +104,24 @@ package body Ray_Tracer is
   function ComputeShadow(hit_pos : float3; lpos : float3) return Shadow_Hit is
     res : Shadow_Hit;
     shadowRay : Ray;
-      h : Hit;
-      epsilon : float;
-      epsilon2 : float;
-      maxDist : float;
+    h : Hit;
+    epsilon : float;
+    epsilon2 : float;
+    maxDist : float;
   begin
 
-    epsilon := max(abs(hit_pos.x), abs(hit_pos.y), abs(hit_pos.z))*0.00001;
-    epsilon := max(epsilon, 0.000001);
+    epsilon := max(abs(hit_pos.x), abs(hit_pos.y), abs(hit_pos.z))*0.000000001;
+    epsilon := max(epsilon, 1.0e-30);
 
     shadowRay.direction := normalize(lpos-hit_pos);
     shadowRay.origin    := hit_pos + shadowRay.direction*epsilon;
 
+    res.shadowRay := shadowRay;
+
     h := Intersections.FindClosestHit(shadowRay);
 
     maxDist  := length(hit_pos - lpos);
-    epsilon2 := max(maxDist*0.0001, 0.00001);
+    epsilon2 := max(maxDist*0.000001, 1.0e-30);
 
     if h.is_hit and then (h.t < maxDist-epsilon2 and h.t > 10.0*epsilon) then
       res.in_shadow        := true;
@@ -266,10 +268,10 @@ package body Ray_Tracer is
 
     --tracer := new SimplePathTracer;
     --tracer := new PathTracerWithShadowRays;
-    --tracer := new PathTracerMIS;
+    tracer := new PathTracerMIS;
     --tracer := new MLTCopyImage;
     --tracer := new MLTSimple;
-    tracer := new MLTKelmenSimple;
+    --tracer := new MLTKelmenSimple;
 
     tracer.gen := mygen; -- default simple generator
     tracer.Init;
@@ -385,7 +387,7 @@ package body Ray_Tracer is
     -- Light material
     --
     g_scn.materials(4).kd     := (0.0, 0.0, 0.0);
-    g_scn.materials(4).ka     := (20.0, 20.0, 20.0);
+    g_scn.materials(4).ka     := (5.0, 5.0, 5.0);
     g_light.intensity   := g_scn.materials(4).ka;
     g_light.surfaceArea := (g_light.boxMax.x - g_light.boxMin.x)*(g_light.boxMax.z - g_light.boxMin.z);
 

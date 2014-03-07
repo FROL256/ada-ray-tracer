@@ -16,7 +16,7 @@ package Ray_Tracer is
   width  : Positive := 800;
   height : Positive := 600;
 
-  threads_num : Positive := 1;
+  threads_num : Positive := 8;
 
   compute_shadows  : boolean  := true;
   anti_aliasing_on : boolean  := true;
@@ -124,6 +124,7 @@ private
   type Shadow_Hit is record
     percentageCloser : float3  := (0.0, 0.0, 0.0);
     in_shadow        : boolean := true;
+    shadowRay        : Ray;
   end record;
 
 
@@ -150,7 +151,7 @@ private
 
   -- this random generator should replace simple random for Kelmen-style MLT
   --
-  QMC_KMLT_MAXRANDS : constant := 32;
+  QMC_KMLT_MAXRANDS : constant := 64;
   type vector32i is array (0..QMC_KMLT_MAXRANDS-1) of integer;
   type vector32f is array (0..QMC_KMLT_MAXRANDS-1) of float;
 
@@ -190,8 +191,9 @@ private
   function MapSampleToCosineDist(r1,r2 : float; direction, normal : float3; power : float) return float3;
 
   type Sample is record
-    contrib : float3 :=(0.0, 0.0, 0.0);
-    w       : float  := 0.0;
+    contrib : float3  :=(0.0, 0.0, 0.0);
+    w       : float   := 0.0;
+    x,y     : integer := 0;
   end record;
 
   procedure NextSample(gen           : in out RandomGenerator;
@@ -265,9 +267,9 @@ private
 
   g_light : FlatLight :=
   (
-    boxMin    => (-0.75, 4.98, 1.25),
-    boxMax    => ( 0.75, 4.98, 3.25),
-    intensity => (10.0, 10.0, 10.0),
+    boxMin    => (-1.75, 4.98, 0.25),
+    boxMax    => ( 1.75, 4.98, 4.25),
+    intensity => (0.5, 0.5, 0.5),
     surfaceArea => 1.0
   );
 

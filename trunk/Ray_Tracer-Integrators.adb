@@ -82,19 +82,19 @@ package body Ray_Tracer.Integrators is
   begin
 
     if recursion_level = 0 then
-      return ((0.0, 0.0, 0.0), false);
+      return ((0.0, 0.0, 0.0), 0.0, 0.0, false);
     end if;
 
 
     h := Intersections.FindClosestHit(r);
 
     if not h.is_hit then
-      return ((0.0, 0.0, 0.0), false);
+      return ((0.0, 0.0, 0.0), 0.0, 0.0, false);
     elsif IsLight(h.mat) then
       if dot(r.direction, (0.0,1.0,0.0)) < 0.0 then
-        return ((0.0, 0.0, 0.0), false);
+        return ((0.0, 0.0, 0.0), h.t, 0.0, false);
       else
-        return (Emittance(h.mat), true);
+        return (Emittance(h.mat), h.t, dot(h.normal, (-1.0)*r.direction), true);
       end if;
     end if;
 
@@ -148,7 +148,7 @@ package body Ray_Tracer.Integrators is
       bxdf := h.mat.kd;
     end if;
 
-    return (bxdf*self.PathTrace(nextRay, recursion_level-1).color, false); -- (1.0/(1.0-pabsorb))
+    return (bxdf*self.PathTrace(nextRay, recursion_level-1).color, h.t, dot(h.normal, (-1.0)*r.direction), false); -- (1.0/(1.0-pabsorb))
 
   end PathTrace;
 
@@ -183,15 +183,15 @@ package body Ray_Tracer.Integrators is
   begin
 
     if recursion_level = 0 then
-      return ((0.0, 0.0, 0.0), false);
+      return ((0.0, 0.0, 0.0), 0.0, 0.0, false);
     end if;
 
     h := Intersections.FindClosestHit(r);
 
     if not h.is_hit then
-      return ((0.0, 0.0, 0.0), false);
+      return ((0.0, 0.0, 0.0), 0.0, 0.0, false);
     elsif IsLight(h.mat) then
-      return ((0.0, 0.0, 0.0), true);
+      return ((0.0, 0.0, 0.0), h.t, dot(h.normal, (-1.0)*r.direction), true);
     end if;
 
     hit_pos := (r.origin + r.direction*h.t);
@@ -204,7 +204,7 @@ package body Ray_Tracer.Integrators is
       sdir : float3 := normalize(lpos - hit_pos);
       cos_theta1 : float := max(dot(sdir, h.normal), 0.0);
       cos_theta2 : float := max(dot(sdir,(0.0,1.0,0.0)), 0.0);
-      impP : float := g_light.surfaceArea*cos_theta1*cos_theta2/(max(3.1415926535*r*r, epsilon));
+      impP : float := g_light.surfaceArea*cos_theta1*cos_theta2/(max(3.1415926535*r*r, 1.0e-37));
     begin
 
       if not ComputeShadow(hit_pos, lpos).in_shadow then
@@ -256,12 +256,15 @@ package body Ray_Tracer.Integrators is
       bxdf := h.mat.kd;
     end if;
 
-    return (res_color + bxdf*self.PathTrace(nextRay, recursion_level-1).color, false);
+    return (res_color + bxdf*self.PathTrace(nextRay, recursion_level-1).color, h.t, dot(h.normal, (-1.0)*r.direction), false);
 
   end PathTrace;
 
 
-
+  function PdfAtoW(aPdfA : in float; aDist : in float; aCosThere : in float) return float is
+  begin
+    return aPdfA*aDist*aDist/max(aCosThere, 1.0e-28);
+  end PdfAtoW;
 
   -- path tracing with multiple importance sampling
   --
@@ -281,23 +284,34 @@ package body Ray_Tracer.Integrators is
     explicitColor : float3 := (0.0, 0.0, 0.0);
     implicitColor : float3 := (0.0, 0.0, 0.0);
     ret : PathResult;
-    pi,pe,wi,we : float;
-    specularBounce : boolean := false;
+    pdf_ii : float; -- implicit when implicit
+    pdf_ei : float; -- explicit when implicit
+    pdf_ie : float; -- implicit when explicit
+    pdf_ee : float; -- explicit when explicit
+    wi, we : float; -- weights
+    specularBounce  : boolean := false;
+
+    cos_theta1 : float := 0.0;
+    cos_theta2 : float := 0.0;
+    lightDist  : float := 0.0;
+
+    sHit : Shadow_Hit;
+
   begin
 
     if recursion_level = 0 then
-      return ((0.0, 0.0, 0.0), false);
+      return ((0.0, 0.0, 0.0), 0.0, 0.0, false);
     end if;
 
     h := Intersections.FindClosestHit(r);
 
     if not h.is_hit then
-      return ((0.0, 0.0, 0.0), false);
+      return ((0.0, 0.0, 0.0), 0.0, 0.0, false);
     elsif IsLight(h.mat) then
       if dot(r.direction, (0.0,1.0,0.0)) < 0.0 then
-        return ((0.0, 0.0, 0.0), false);
+        return ((0.0, 0.0, 0.0), h.t, abs(dot(h.normal, (-1.0)*r.direction)), false);
       else
-        return (Emittance(h.mat), true);
+        return (Emittance(h.mat), h.t, abs(dot(h.normal, (-1.0)*r.direction)), true);
       end if;
     end if;
 
@@ -306,15 +320,23 @@ package body Ray_Tracer.Integrators is
     -- explicit sampling
     --
     declare
-      lpos : float3 := LightSample(self.gen, g_light);
-      r    : float  := length(hit_pos - lpos);
-      sdir : float3 := normalize(lpos - hit_pos);
-      cos_theta1 : float := max(dot(sdir, h.normal), 0.0);
-      cos_theta2 : float := max(dot(sdir,(0.0,1.0,0.0)), 0.0);
-      impP : float  := g_light.surfaceArea*cos_theta1*cos_theta2/(max(3.1415926535*r*r, epsilon));
+
+      lpos  : float3     := LightSample(self.gen, g_light);
+      Ldist : float      := length(hit_pos - lpos);
+      Ldir  : float3     := normalize(lpos - hit_pos);
+      impP  : float;
+
     begin
 
-      if not ComputeShadow(hit_pos, lpos).in_shadow then
+      cos_theta1 := max(dot(Ldir, h.normal), 0.0);
+      cos_theta2 := max(dot(Ldir, (0.0,1.0,0.0)), 0.0); -- minus na munus daet plus
+      impP       := g_light.surfaceArea*cos_theta1*cos_theta2/(max(3.1415926535*Ldist*Ldist, 1.0e-37));
+
+      lightDist  := Ldist;
+
+      sHit := ComputeShadow(hit_pos, lpos);
+
+      if not sHit.in_shadow then
         explicitColor := (h.mat.kd*g_light.intensity)*impP;
       end if;
 
@@ -370,24 +392,38 @@ package body Ray_Tracer.Integrators is
     ret := self.PathTrace(nextRay, recursion_level-1);
     implicitColor := bxdf*ret.color;
 
-    -- Multiple importance Sampling (MIS)
+    -- Multiple Importance Sampling (MIS)
     --
     if ret.hitLight then
-      pe := 1.0/g_light.surfaceArea;
-      pi := 3.1415926535/max(dot(nextRay.direction, h.normal), epsilon);
+
+      -- implicit hit
+      --
+      pdf_ei := PdfAtoW(1.0/g_light.surfaceArea, ret.dist, ret.lightCos);
+      pdf_ii := dot(nextRay.direction, h.normal);
+
+      -- explicit hit
+      --
+      pdf_ee := PdfAtoW(1.0/g_light.surfaceArea, lightDist, cos_theta2);
+      pdf_ie := cos_theta1;
+
 
       if specularBounce then
         res_color := implicitColor;
       else
-        wi := sqr(pi)/(sqr(pe) + sqr(pi));
-        we := sqr(pe)/(sqr(pe) + sqr(pi));
-        res_color := implicitColor*(wi/pi) + explicitColor*(we/pe);
+        wi := sqr(pdf_ii)/(sqr(pdf_ei) + sqr(pdf_ii));
+        we := sqr(pdf_ee)/(sqr(pdf_ee) + sqr(pdf_ie));
+
+        --wi := pdf_ii/(pdf_ei + pdf_ii);
+        --we := pdf_ee/(pdf_ee + pdf_ie);
+
+        res_color := implicitColor*(wi/pdf_ii)*(1.0/3.1415926536) + explicitColor*(we/pdf_ee)*(1.0/3.1415926536); -- (1.0/3.1415926536)
+
       end if;
     else
       res_color := implicitColor + explicitColor;
     end if;
 
-    return (res_color, false);
+    return (res_color, h.t, abs(dot(h.normal, (-1.0)*r.direction)), false);
 
   end PathTrace;
 
@@ -404,7 +440,7 @@ package body Ray_Tracer.Integrators is
 
   function PathTrace(self : MLTCopyImage; r : Ray; recursion_level : Integer) return PathResult is
   begin
-    return ((0.0, 0.0, 0.0), false); -- not used
+    return ((0.0, 0.0, 0.0), 0.0, 0.0, false); -- not used
   end PathTrace;
 
 
@@ -857,9 +893,9 @@ package body Ray_Tracer.Integrators is
     end if;
 
     newsample.contrib := contrib;
-    newsample.w := (a + float(gen.large_step))/(I/b+plarge)/M;
+    newsample.w := (a + float(gen.large_step))/( (I/b + plarge)*M); --  (a + float(gen.large_step))/(I/b+plarge)/M;
 
-    oldsample.w := oldsample.w + (1.0-a)/(oldI/b+plarge)/M;       -- cumulate weight
+    oldsample.w := oldsample.w + (1.0-a)/((oldI/b + plarge)*M);       -- oldsample.w + (1.0-a)/(oldI/b+plarge)/M; -- cumulate weight
 
     if gen.rnd_uniform_simple(0.0, 1.0) < a then -- accept
 
@@ -899,7 +935,7 @@ package body Ray_Tracer.Integrators is
   --
   function PathTrace(self : MLTKelmenSimple; r : Ray; recursion_level : Integer) return PathResult is
   begin
-    return PathTrace(SimplePathTracer(self), r, recursion_level);
+    return PathTrace(PathTracerMIS(self), r, recursion_level);
   end PathTrace;
 
 
@@ -909,8 +945,8 @@ package body Ray_Tracer.Integrators is
     Fx, Fy : float  := 0.0;
     colorX : float3 := (0.0, 0.0, 0.0);
     colorY : float3 := (0.0, 0.0, 0.0);
-    oldsample : Sample := ((0.0, 0.0, 0.0), 0.0);
-    newsample : Sample := ((0.0, 0.0, 0.0), 0.0);
+    oldsample : Sample := ((0.0, 0.0, 0.0), 0.0, 0, 0);
+    newsample : Sample := ((0.0, 0.0, 0.0), 0.0, 0, 0);
 
     test1 : float   := self.gen.values(0);
     test2 : float   := self.gen.values_stack(0);
@@ -938,6 +974,7 @@ package body Ray_Tracer.Integrators is
     self.brightnessEstim := 0.25; --self.brightnessEstim/( float(width*height) );
 
     r.origin := g_cam.pos;
+
 
 
     ----------------------------------------------------------------------------------
@@ -971,9 +1008,12 @@ package body Ray_Tracer.Integrators is
 
     oldsample.contrib := colorX;
     oldsample.w       := 1.0;
+    oldsample.x       := x0;
+    oldsample.y       := x1;
 
     newsample.contrib := (0.0, 0.0, 0.0);
     newsample.w       := 0.0;
+
 
     -- prepare for main part
     --
@@ -988,6 +1028,9 @@ package body Ray_Tracer.Integrators is
 
       y0 := integer(self.gen.rnd_uniform(0.0, float(width-1)));
       y1 := integer(self.gen.rnd_uniform(0.0, float(height-1)));
+
+      newsample.x := y0;
+      newsample.y := y1;
 
       r.direction  := EyeRayDirection(y0,y1);
       r.direction  := normalize(g_cam.matrix*r.direction);
@@ -1008,8 +1051,7 @@ package body Ray_Tracer.Integrators is
                  oldsample     => oldsample,
                  contribsample => newsample);
 
-      self.mltHist(x0,x1) := self.mltHist(x0,x1) + newsample.contrib*newsample.w*10.0;
-
+      self.mltHist(newsample.x, newsample.y) := self.mltHist(newsample.x, newsample.y) + newsample.contrib*newsample.w;
 
     end loop;
     --
@@ -1024,7 +1066,7 @@ package body Ray_Tracer.Integrators is
     --
     for y in 0 .. height-1 loop
       for x in 0 .. width-1 loop
-        colBuff(x,y) := self.mltHist(x,y)*(1.0/float(self.mutationsPerPixel))*self.brightnessEstim; -- (1.0/float(g_mltMutations))
+        colBuff(x,y) := self.mltHist(x,y)*(1.0/float(self.mutationsPerPixel)); --*self.brightnessEstim; -- (1.0/float(g_mltMutations))
       end loop;
     end loop;
 

@@ -282,20 +282,21 @@ package body Ray_Tracer.Integrators is
     sign : float := 1.0;
     ksitrans,ksirefl : float;
     explicitColor : float3 := (0.0, 0.0, 0.0);
-    implicitColor : float3 := (0.0, 0.0, 0.0);
+    bsdfColor : float3 := (0.0, 0.0, 0.0);
     ret : PathResult;
-    pdf_ii : float; -- implicit when implicit
-    pdf_ei : float; -- explicit when implicit
-    pdf_ie : float; -- implicit when explicit
-    pdf_ee : float; -- explicit when explicit
-    wi, we : float; -- weights
+
     specularBounce  : boolean := false;
 
     cos_theta1 : float := 0.0;
     cos_theta2 : float := 0.0;
-    lightDist  : float := 0.0;
+    cos_theta  : float := 0.0;
 
-    sHit : Shadow_Hit;
+    bsdf_pdf : float := 0.0;
+    lgt_pdf  : float := 0.0;
+    w        : float := 0.0;
+    pdfInv   : float  := 1.0;
+
+    sHit     : Shadow_Hit;
 
   begin
 
@@ -317,27 +318,31 @@ package body Ray_Tracer.Integrators is
 
     hit_pos := (r.origin + r.direction*h.t);
 
+
     -- explicit sampling
     --
     declare
 
-      lpos  : float3     := LightSample(self.gen, g_light);
-      Ldist : float      := length(hit_pos - lpos);
-      Ldir  : float3     := normalize(lpos - hit_pos);
-      impP  : float;
+      lpos  : float3 := LightSample(self.gen, g_light);
+      Ldist : float  := length(hit_pos - lpos);
+      Ldir  : float3 := normalize(lpos - hit_pos);
 
     begin
 
       cos_theta1 := max(dot(Ldir, h.normal), 0.0);
       cos_theta2 := max(dot(Ldir, (0.0,1.0,0.0)), 0.0); -- minus na munus daet plus
-      impP       := g_light.surfaceArea*cos_theta1*cos_theta2/(max(3.1415926535*Ldist*Ldist, 1.0e-37));
 
-      lightDist  := Ldist;
+      bsdf_pdf   := cos_theta1 / 3.1415926536;
+      lgt_pdf    := Ldist*Ldist /(g_light.surfaceArea*cos_theta2);
 
-      sHit := ComputeShadow(hit_pos, lpos);
+      w          := sqr(lgt_pdf)/(sqr(bsdf_pdf) + sqr(lgt_pdf));
+      pdfInv     := 1.0/max(lgt_pdf, 1.0e-28);
+
+      sHit       := ComputeShadow(hit_pos, lpos);
 
       if not sHit.in_shadow then
-        explicitColor := (h.mat.kd*g_light.intensity)*impP;
+        explicitColor := (h.mat.kd*(1.0/3.1415926535)*g_light.intensity)*cos_theta1*pdfInv; -- impP := g_light.surfaceArea*cos_theta1*cos_theta2/(max(3.1415926535*Ldist*Ldist, 1.0e-37));
+        res_color     := res_color + explicitColor*w;
       end if;
 
     end;
@@ -385,42 +390,37 @@ package body Ray_Tracer.Integrators is
     else  -- diffuse reflection
       nextRay.direction := RandomCosineVectorOf(self.gen, h.normal);
       nextRay.origin    := hit_pos + epsilon*h.normal;
-      bxdf              := h.mat.kd;
+      bxdf              := h.mat.kd*(1.0/3.1415926536);
       specularBounce    := false;
     end if;
 
     ret := self.PathTrace(nextRay, recursion_level-1);
-    implicitColor := bxdf*ret.color;
 
-    -- Multiple Importance Sampling (MIS)
-    --
-    if ret.hitLight then
+    if specularBounce then
 
-      -- implicit hit
-      --
-      pdf_ei := PdfAtoW(1.0/g_light.surfaceArea, ret.dist, ret.lightCos);
-      pdf_ii := dot(nextRay.direction, h.normal);
+      bsdfColor := bxdf*ret.color;
+      res_color := bsdfColor;
 
-      -- explicit hit
-      --
-      pdf_ee := PdfAtoW(1.0/g_light.surfaceArea, lightDist, cos_theta2);
-      pdf_ie := cos_theta1;
+    else
 
+      cos_theta := dot(nextRay.direction, h.normal);
+      bsdf_pdf  := max(cos_theta / 3.1415926536, 1.0e-28);
+      bsdfColor := ret.color*bxdf*cos_theta*(1.0/bsdf_pdf);
 
-      if specularBounce then
-        res_color := implicitColor;
+      if ret.hitLight then
+
+        lgt_pdf    := ret.dist*ret.dist /(g_light.surfaceArea*ret.lightCos); -- (new_prd.t * new_prd.t / (LnDl * A)
+        w          := sqr(bsdf_pdf)/(sqr(bsdf_pdf) + sqr(lgt_pdf));
+
+        --res_color  := explicitColor;
+        res_color  := res_color + bsdfColor*(1.0/3.1415926536)*w;
+
       else
-        wi := sqr(pdf_ii)/(sqr(pdf_ei) + sqr(pdf_ii));
-        we := sqr(pdf_ee)/(sqr(pdf_ee) + sqr(pdf_ie));
 
-        --wi := pdf_ii/(pdf_ei + pdf_ii);
-        --we := pdf_ee/(pdf_ee + pdf_ie);
-
-        res_color := implicitColor*(wi/pdf_ii)*(1.0/3.1415926536) + explicitColor*(we/pdf_ee)*(1.0/3.1415926536); -- (1.0/3.1415926536)
+        res_color := bsdfColor + explicitColor;
 
       end if;
-    else
-      res_color := implicitColor + explicitColor;
+
     end if;
 
     return (res_color, h.t, abs(dot(h.normal, (-1.0)*r.direction)), false);

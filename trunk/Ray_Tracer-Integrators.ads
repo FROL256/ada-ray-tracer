@@ -108,21 +108,24 @@ private package Ray_Tracer.Integrators is
   function  Mutate(gen : in KMLT_Generator; a_value : float) return float;
   procedure PrimarySample(gen : in out KMLT_Generator; i : in integer; time : in integer; res : out float);
 
-  procedure NextSample(gen           : in out KMLT_Generator;
+  procedure NextSample(gen           : in out RandomGenerator'Class;
                        I             : in float;
                        oldI          : in out float;
                        totalSamples  : in integer;
                        contrib       : in float3;
                        oldsample     : in out Sample;
-                       contribsample : out Sample);
+                       cumulativeWeight : in out float;
+                       contribsample : out Sample;
+                       spectrum : in out AccumBuffRef);
 
 
 
   -- simple Kelmen style MLT; no shadow rays, no MIS
   --
 
-  type MLTKelmenSimple is new PathTracerMIS with record
+  type MLTKelmenSimple is new SimplePathTracer with record
     mltHist : AccumBuffRef  := null;
+    lumArray : FloatBuffRef := null;
     brightnessEstim : float := 0.0;
     mutationsPerPixel : integer := g_mltMutationsPerPixel;
   end record;

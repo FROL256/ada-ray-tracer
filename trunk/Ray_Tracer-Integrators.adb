@@ -153,6 +153,8 @@ package body Ray_Tracer.Integrators is
   end PathTrace;
 
 
+
+
   function LightSample(gen : RandRef; lightGeom : FlatLight) return float3 is
     r1 : float := gen.rnd_uniform(0.0, 1.0);
     r2 : float := gen.rnd_uniform(0.0, 1.0);
@@ -665,6 +667,8 @@ package body Ray_Tracer.Integrators is
     self.mltHist := new AccumBuff(0..width-1, 0..height-1);
     self.gen := new KMLT_Generator;
 
+    self.lumArray  := new FloatBuff(0..width-1, 0..height-1);
+
     --Put_Line("MLTKelmenSimple.Init");
 
   end Init;
@@ -703,7 +707,19 @@ package body Ray_Tracer.Integrators is
   function  IsStackEmpty(gen : in KMLT_Generator) return boolean is
   begin
     return (gen.top = 0);
-  end IsStackEmpty;
+   end IsStackEmpty;
+
+   function  ValuesSize(gen : in KMLT_Generator) return integer is
+      j : integer;
+  begin
+
+      j := 0;
+      while gen.values(j) /= 0.0 loop
+         j := j + 1;
+      end loop;
+   return j;
+  end ValuesSize;
+
 
   procedure ClearStack(gen : in out KMLT_Generator) is
   begin
@@ -716,25 +732,52 @@ package body Ray_Tracer.Integrators is
 
 
   function Mutate(gen : in KMLT_Generator; a_value : float) return float is
-    s1,s2,dv,value : float;
+      s1,s2,dv,value,sample : float;
+      add : boolean;
   begin
 
     s1 := 1.0/1024.0;
     s2 := 1.0/64.0;
-    dv := s2*exp(-log(s2/s1)*gen.rnd_uniform_simple(0.0, 1.0));
-    value := a_value;
 
-    if gen.rnd_uniform_simple(0.0, 1.0) < 0.5 then
-      value := value + dv;
-      if value > 1.0 then
-        value := value - 1.0;
+    value := a_value;
+    sample := gen.rnd_uniform_simple(0.0, 1.0);
+
+      if sample < 0.5 then
+         add := true;
+         sample := sample*2.0;
+      else
+         add := false;
+         sample := 2.0*(sample - 0.5);
       end if;
-    else
-      value := value - dv;
-      if value < 0.0 then
-        value := value + 1.0;
+
+      dv := s2*exp(-log(s2/s1)*sample);
+
+      if add then
+         value := value + dv;
+         if value > 1.0 then
+            value := value - 1.0;
+         end if;
+      else
+         value := value - dv;
+         if value < 0.0 then
+           value := value + 1.0;
+	 end if;
       end if;
-    end if;
+
+
+
+
+   -- if gen.rnd_uniform_simple(0.0, 1.0) < 0.5 then
+   --   value := value + dv;
+   --   if value > 1.0 then
+  --      value := value - 1.0;
+   --   end if;
+  --  else
+ --     value := value - dv;
+  --    if value < 0.0 then
+  --      value := value + 1.0;
+  --    end if;
+  --  end if;
 
     return value;
   end Mutate;
@@ -751,13 +794,19 @@ package body Ray_Tracer.Integrators is
   -- used, the value of the coordinate was set at time modify. Then
   -- the coordinate is perturbed by time modify times.
   --
-  procedure PrimarySample(gen : in out KMLT_Generator; i : in integer; time : in integer; res : out float) is
+   procedure PrimarySample(gen : in out KMLT_Generator; i : in integer; time : in integer; res : out float) is
   begin
 
     -- copy-paste from Mitsuba
     --
-    -- while (i >= m_u.size())
-    --   m_u.push_back(SampleStruct(m_random->nextFloat()));
+
+     --sss := ValuesSize(gen);
+
+     --while i >= sss loop
+     --    gen.values(sss) := gen.rnd_uniform_simple(0.0, 1.0);
+     --    gen.modify(sss) := 0;
+--	sss := sss + 1;
+  --    end loop;
 
     gen.values(i) := gen.rnd_uniform_simple(0.0, 1.0);
 
@@ -776,7 +825,7 @@ package body Ray_Tracer.Integrators is
 
         -- lazy evaluation of mutations
         --
-        while gen.modify(i) < time-1 loop
+        while gen.modify(i) + 1 < time loop
           gen.values(i) := Mutate(gen, gen.values(i));
           gen.modify(i) := gen.modify(i) + 1;
         end loop;
@@ -866,21 +915,23 @@ package body Ray_Tracer.Integrators is
   -- scalar contribution I*(u) in variable I
   --
 
-  procedure NextSample(gen           : in out KMLT_Generator;
+  procedure NextSample(gen           : in out RandomGenerator'Class;
                        I             : in float;
                        oldI          : in out float;
                        totalSamples  : in integer;
                        contrib       : in float3;
                        oldsample     : in out Sample;
-                       contribsample : out Sample) is
+                       cumulativeWeight : in out float;
+                       contribsample : out Sample;
+                       spectrum : in out AccumBuffRef) is
 
     a         : float;
     newsample : Sample;
-
-    b         : float := 0.25;
-    plarge    : float := 1.0/4.0;
+    accept_b : boolean;
+    b         : float := 0.2;
+    plarge    : float := 0.5;
     M         : float := float(totalSamples);
-
+    largeStep : boolean;
     ix : integer := 0;   -- temp
     ui : float   := 0.0; -- temp
 
@@ -892,19 +943,40 @@ package body Ray_Tracer.Integrators is
       a := min(1.0, I/oldI);
     end if;
 
-    newsample.contrib := contrib;
-    newsample.w := (a + float(gen.large_step))/( (I/b + plarge)*M); --  (a + float(gen.large_step))/(I/b+plarge)/M;
+    largeStep := gen.rnd_uniform_simple(0.0, 1.0) < plarge;
 
-    oldsample.w := oldsample.w + (1.0-a)/((oldI/b + plarge)*M);       -- oldsample.w + (1.0-a)/(oldI/b+plarge)/M; -- cumulate weight
+    newsample := contribsample;
+    --newsample.contrib := contrib;
+      if a > 0.0 then
+         if largeStep then
+            newsample.w := (a + 1.0)*I/(I/b + plarge); --  (a + float(gen.large_step))/((I/b+plarge)*M);  !!!!!!!!!!!
+         else
+            newsample.w := a*I/(I/b + plarge);
+         end if;
+         oldsample.w := (1.0-a)*oldI/(oldI/b + plarge);       -- oldsample.w + (1.0-a)/((oldI/b+plarge)*M); -- cumulate weight  !!!!!!!!!!!
+         accept_b := (gen.rnd_uniform_simple(0.0, 1.0) < a);  -- or else (a = 1.0));
+      else
+         oldsample.w := oldI/(oldI/b + plarge); --oldsample.w := oldI/((oldI/b + plarge)*M);
+         newsample.w := 0.0;
+         accept_b := false;
+      end if;
 
-    if gen.rnd_uniform_simple(0.0, 1.0) < a then -- accept
+      cumulativeWeight := cumulativeWeight + oldsample.w;
 
+    if accept_b then -- accept
+
+      spectrum(newsample.x, newsample.y) := spectrum(newsample.x, newsample.y) + oldsample.contrib*cumulativeWeight;
+
+      cumulativeWeight := newsample.w;
       oldI          := I;
       contribsample := oldsample;
       oldsample     := newsample;
 
-      if gen.large_step = 1 then
+      if largeStep then --gen.large_step = 1
         gen.large_step_time := gen.time;
+        gen.large_step := 1;
+      else
+        gen.large_step := 0;
       end if;
 
       gen.time := gen.time + 1;
@@ -912,18 +984,14 @@ package body Ray_Tracer.Integrators is
 
     else
 
+      spectrum(newsample.x, newsample.y) := spectrum(newsample.x, newsample.y) + newsample.contrib*newsample.w;
       contribsample := newsample;
       gen.RestoreSequence;
 
     end if;
 
-    -- decide wherther 'next after this-next' sample will be large or not
-    --
-    if gen.rnd_uniform_simple(0.0, 1.0) < plarge then
-      gen.large_step := 1;
-    else
-      gen.large_step := 0;
-    end if;
+    spectrum(newsample.x, newsample.y) := spectrum(newsample.x, newsample.y) + newsample.contrib*cumulativeWeight;
+
 
   end NextSample;
 
@@ -935,7 +1003,8 @@ package body Ray_Tracer.Integrators is
   --
   function PathTrace(self : MLTKelmenSimple; r : Ray; recursion_level : Integer) return PathResult is
   begin
-    return PathTrace(PathTracerMIS(self), r, recursion_level);
+      --return PathTrace(PathTracerMIS(self), r, recursion_level);
+      return PathTrace(SimplePathTracer(self), r, recursion_level);
   end PathTrace;
 
 
@@ -947,6 +1016,8 @@ package body Ray_Tracer.Integrators is
     colorY : float3 := (0.0, 0.0, 0.0);
     oldsample : Sample := ((0.0, 0.0, 0.0), 0.0, 0, 0);
     newsample : Sample := ((0.0, 0.0, 0.0), 0.0, 0, 0);
+    cumulativeWeight : float;
+
 
     test1 : float   := self.gen.values(0);
     test2 : float   := self.gen.values_stack(0);
@@ -967,6 +1038,7 @@ package body Ray_Tracer.Integrators is
     for y in 0 .. height-1 loop
       for x in 0 .. width-1 loop
         self.mltHist(x,y) := (0.0, 0.0, 0.0);
+        self.lumArray(x,y) := 0.0;
         --self.brightnessEstim := self.brightnessEstim + Luminance(g_mltTestImage(x,y));
       end loop;
     end loop;
@@ -982,14 +1054,22 @@ package body Ray_Tracer.Integrators is
 
     -- Create an initial sample point
     --
+
+
+    -- Create a histogram of values using Metropolis sampling.
+    --
+    for i in 1 .. (width*height) loop -- *self.mutationsPerPixel
+
+         -----------------------
     Fx := 0.0;
 
-    while (Fx <= 0.0) or (Fx >= 20.0) loop
+    while (Fx <= 0.0) or (Fx >= Luminance(g_light.intensity)) loop --sample not black and not light source
 
       self.gen.InitSequence;
 
       x0 := integer(self.gen.rnd_uniform(0.0, float(width-1)));
       x1 := integer(self.gen.rnd_uniform(0.0, float(height-1)));
+
 
       r.direction  := EyeRayDirection(x0,x1);
       r.direction  := normalize(g_cam.matrix*r.direction);
@@ -1020,40 +1100,51 @@ package body Ray_Tracer.Integrators is
     self.gen.ClearStack;
     self.gen.ResetAllModifyCounters;
 
-    -- Create a histogram of values using Metropolis sampling.
-    --
-    for i in 1 .. (width*height*self.mutationsPerPixel) loop
 
-      self.gen.ResetSequenceCounter;
 
-      y0 := integer(self.gen.rnd_uniform(0.0, float(width-1)));
-      y1 := integer(self.gen.rnd_uniform(0.0, float(height-1)));
+    cumulativeWeight := 0.0;
 
-      newsample.x := y0;
-      newsample.y := y1;
+    for j in 1 .. (self.mutationsPerPixel) loop
 
-      r.direction  := EyeRayDirection(y0,y1);
-      r.direction  := normalize(g_cam.matrix*r.direction);
+	self.gen.ResetSequenceCounter;
+      	y0 := integer(self.gen.rnd_uniform(0.0, float(width-1)));
+      	y1 := integer(self.gen.rnd_uniform(0.0, float(height-1)));
 
-      colorY := self.PathTrace(r, max_depth).color;
-      Fy     := Luminance(colorY);
-      if Fy > 0.0 then
-        colorY := colorY*(1.0/Fy);
-      else
-        colorY := (0.0, 0.0, 0.0);
-      end if;
+      	newsample.x := y0;
+      	newsample.y := y1;
 
-      NextSample(gen           => RandomGenerator'Class(self.gen.all), -- don't fuck your mind with Ada83 and Ada95 dynamic dispatch syntax,
-                 I             => Fy,                                  -- it is the explicit form of Ada2005 'self.gen.NextSample(....)';
-                 oldI          => Fx,                                  -- just a call of 'virtual function'.
-                 totalSamples  => i,                                   -- i decided to put this 'old-fashioned' form here cause it is more explicit
-                 contrib       => colorY,                              --
-                 oldsample     => oldsample,
-                 contribsample => newsample);
+      	r.direction  := EyeRayDirection(y0,y1);
+      	r.direction  := normalize(g_cam.matrix*r.direction);
 
-      self.mltHist(newsample.x, newsample.y) := self.mltHist(newsample.x, newsample.y) + newsample.contrib*newsample.w;
+      	colorY := self.PathTrace(r, max_depth).color;
+        Fy     := Luminance(colorY);
+
+      	if Fy > 0.0 then
+          colorY := colorY*(1.0/Fy);
+      	else
+          colorY := (0.0, 0.0, 0.0);
+      	end if;
+
+      	newsample.contrib := colorY;
+
+        NextSample(gen              => RandomGenerator'Class(self.gen.all), -- don't fuck your mind with Ada83 and Ada95 dynamic dispatch syntax,
+                   I                => Fy,                                  -- it is the explicit form of Ada2005 'self.gen.NextSample(....)';
+                   oldI             => Fx,                                  -- just a call of 'virtual function'.
+                   totalSamples     => i,                                   -- i decided to put this 'old-fashioned' form here cause it is more explicit
+                   contrib          => colorY,                              --
+                   oldsample        => oldsample,
+                   cumulativeWeight => cumulativeWeight,
+                   contribsample    => newsample,
+                   spectrum         => self.mltHist);
+
+	self.lumArray(newsample.x, newsample.y) := Fx*0.5;
+            --self.mltHist(newsample.x, newsample.y) := self.mltHist(newsample.x, newsample.y) + newsample.contrib*newsample.w;
+
+      end loop;
 
     end loop;
+
+
     --
     -- MLT algorithm end
 
@@ -1066,7 +1157,7 @@ package body Ray_Tracer.Integrators is
     --
     for y in 0 .. height-1 loop
       for x in 0 .. width-1 loop
-        colBuff(x,y) := self.mltHist(x,y)*(1.0/float(self.mutationsPerPixel)); --*self.brightnessEstim; -- (1.0/float(g_mltMutations))
+        colBuff(x,y) := self.mltHist(x,y)*(1.0/float(self.mutationsPerPixel));--*self.brightnessEstim*self.lumArray(x,y); -- (1.0/float(g_mltMutations))
       end loop;
     end loop;
 

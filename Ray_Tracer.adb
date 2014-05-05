@@ -268,10 +268,10 @@ package body Ray_Tracer is
 
     --tracer := new SimplePathTracer;
     --tracer := new PathTracerWithShadowRays;
-    tracer := new PathTracerMIS;
+    --tracer := new PathTracerMIS;
     --tracer := new MLTCopyImage;
     --tracer := new MLTSimple;
-    --tracer := new MLTKelmenSimple;
+    tracer := new MLTKelmenSimple;
 
     tracer.gen := mygen; -- default simple generator
     tracer.Init;
@@ -377,7 +377,7 @@ package body Ray_Tracer is
     -- Left wall
     --
     g_scn.materials(2).ka := (0.0, 0.0, 0.0);
-    g_scn.materials(2).kd := (0.25, 0.65, 0.0);
+    g_scn.materials(2).kd := (0.0, 0.5, 0.0); --0.25 0.65 0.0
 
     -- Right wall
     --
@@ -387,7 +387,7 @@ package body Ray_Tracer is
     -- Light material
     --
     g_scn.materials(4).kd     := (0.0, 0.0, 0.0);
-    g_scn.materials(4).ka     := (5.0, 5.0, 5.0);
+    g_scn.materials(4).ka     := (10.0, 10.0, 10.0);
     g_light.intensity   := g_scn.materials(4).ka;
     g_light.surfaceArea := (g_light.boxMax.x - g_light.boxMin.x)*(g_light.boxMax.z - g_light.boxMin.z);
 

@@ -16,17 +16,17 @@ package Ray_Tracer is
   width  : Positive := 800;
   height : Positive := 600;
 
-  threads_num : Positive := 8;
+  threads_num : Positive := 1;
 
   compute_shadows  : boolean  := true;
-  anti_aliasing_on : boolean  := true;
+  anti_aliasing_on : boolean  := false;
   max_depth        : Positive := 8;
 
   background_color : float3   := (0.0,0.0,0.0);
 
   g_gamma : float := 2.0;
   epsilon : float := 1.0e-5;
-  g_mltMutationsPerPixel : integer := 4;
+  g_mltMutationsPerPixel : integer := 64;
 
 
   type ScreenBufferData is array(integer range <>, integer range <>) of Unsigned_32;
@@ -267,8 +267,8 @@ private
 
   g_light : FlatLight :=
   (
-    boxMin    => (-1.75, 4.98, 0.25),
-    boxMax    => ( 1.75, 4.98, 4.25),
+    boxMin    => (-0.75, 4.98, 1.25),
+    boxMax    => ( 0.75, 4.98, 3.25),
     intensity => (0.5, 0.5, 0.5),
     surfaceArea => 1.0
   );

@@ -136,118 +136,6 @@ package body Ray_Tracer is
   end ComputeShadow;
 
 
-  ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  ----------------------------------------------------------------- Monte-Carlo Path Tracing -----------------------------------------------------------------------------------
-  ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  --
-
-  ---- this function is for path tracing parameters; it can be redefifed in further subclasses
-  --
-
-  function rnd_uniform(gen : access RandomGenerator; l,h : float) return float is
-    t : float;
-  begin
-    t := Ada.Numerics.Float_Random.Random(Gen => gen.agen);
-    return l + (h-l)*t;
-  end rnd_uniform;
-
-  ---- this function is used for simple random and must not be redefined
-  --
-  function rnd_uniform_simple(gen : RandomGenerator; l,h : float) return float is
-    t: float := 0.0;
-  begin
-    t := Ada.Numerics.Float_Random.Random(Gen => gen.agen);
-    return l + (h-l)*t;
-  end rnd_uniform_simple;
-
-  ----
-  --
-  procedure ResetSequenceCounter(gen : in out RandomGenerator) is
-  begin
-    null;
-  end ResetSequenceCounter;
-
-  procedure InitSequence(gen : in out RandomGenerator) is
-  begin
-    null;
-  end InitSequence;
-
-  procedure NextSample(gen           : in out RandomGenerator;
-                       I             : in float;
-                       oldI          : in out float;
-                       totalSamples  : in integer;
-                       contrib       : in float3;
-                       oldsample     : in out Sample;
-                       contribsample : out Sample) is
-  begin
-    null;
-  end NextSample;
-
-  procedure RestoreSequence(gen : in out RandomGenerator) is
-  begin
-    null;
-  end  RestoreSequence;
-
-  procedure ClearStack(gen : in out RandomGenerator) is
-  begin
-    null;
-  end ClearStack;
-
-  procedure ResetAllModifyCounters(gen : in out RandomGenerator) is
-  begin
-    null;
-  end ResetAllModifyCounters;
-
-
-
-  function MapSampleToCosineDist(r1,r2 : float; direction, normal : float3; power : float) return float3 is
-   e,sin_phi,cos_phi: float;
-   sin_theta,cos_theta : float;
-   deviation,nx,ny,nz,tmp,res : float3;
-   invSign : float;
-  begin
-
-    e := power;
-    sin_phi := sin(2.0*r1*3.141592654);
-    cos_phi := cos(2.0*r1*3.141592654);
-
-    cos_theta := (1.0-r2) ** (1.0/(e+1.0));
-    sin_theta := sqrt(1.0-cos_theta*cos_theta);
-
-    deviation := (sin_theta*cos_phi, sin_theta*sin_phi, cos_theta);
-
-    ny := direction;
-    nx := normalize(cross(ny, (1.04,2.93,-0.6234)));
-    nz := normalize(cross(nx, ny));
-
-    tmp := ny; ny := nz; nz := tmp; -- swap(ny,nz);  // depends on the coordinate system
-
-    res := nx*deviation.x + ny*deviation.y + nz*deviation.z;
-
-    if dot(direction, normal) > 0.0 then
-      invSign := 1.0;
-    else
-      invSign := -1.0;
-    end if;
-
-    if invSign*dot(res, normal) < 0.0 then
-      res := (-1.0)*nx*deviation.x + ny*deviation.y - nz*deviation.z;
-    end if;
-
-    return res;
-
-  end MapSampleToCosineDist;
-
-  function RandomCosineVectorOf(gen : RandRef; norm : float3) return float3 is
-    r1 : float := gen.rnd_uniform(0.0, 1.0);
-    r2 : float := gen.rnd_uniform(0.0, 1.0);
-  begin
-    return MapSampleToCosineDist(r1,r2,norm,norm,1.0);
-  end RandomCosineVectorOf;
-
-
-
 
 
 
@@ -266,12 +154,12 @@ package body Ray_Tracer is
     -- select integrator
     --
 
-    --tracer := new SimplePathTracer;
+    tracer := new SimplePathTracerLegacy;
     --tracer := new PathTracerWithShadowRays;
     --tracer := new PathTracerMIS;
     --tracer := new MLTCopyImage;
     --tracer := new MLTSimple;
-    tracer := new MLTKelmenSimple;
+    --tracer := new MLTKelmenSimple;
 
     tracer.gen := mygen; -- default simple generator
     tracer.Init;
@@ -313,15 +201,16 @@ package body Ray_Tracer is
     --delete(mygen); mygen := null;
 
     exception
+
       when The_Error : others =>
 
       Put_Line("Error raised in the thread:");
-        Put_Line(Ada.Exceptions.Exception_Name(The_Error));
-        Put_Line(Ada.Exceptions.Exception_Message(The_Error));
-        Put_Line("");
+      Put_Line(Ada.Exceptions.Exception_Name(The_Error));
+      Put_Line(Ada.Exceptions.Exception_Message(The_Error));
+      Put_Line("");
 
-        delete(colBuff);
-        --delete(mygen);
+      delete(colBuff);
+      --delete(mygen);
 
   end Path_Trace_Thread;
 
@@ -353,66 +242,67 @@ package body Ray_Tracer is
 
     -- init materials
     --
-    for i in 0 .. g_scn.materials'Last loop
-      if g_scn.materials(i) = null then
-        g_scn.materials(i) := new LegacyMaterial;
+    for i in 0 .. g_scn.materialsLegacy'Last loop
+      if g_scn.materialsLegacy(i) = null then
+        g_scn.materialsLegacy(i) := new LegacyMaterial;
       end if;
     end loop;
 
     -- glass material
     --
-    g_scn.materials(0).kd           := (0.0, 0.0, 0.0);
-    g_scn.materials(0).reflection   := (1.0,1.0,1.0);
-    g_scn.materials(0).roughness    := 0.25;
-    g_scn.materials(0).transparency := (1.0,1.0,1.0);
-    g_scn.materials(0).ior          := 1.75;
-    g_scn.materials(0).fresnel      := true;
+    g_scn.materialsLegacy(0).kd           := (0.0, 0.0, 0.0);
+    g_scn.materialsLegacy(0).reflection   := (1.0,1.0,1.0);
+    g_scn.materialsLegacy(0).roughness    := 0.25;
+    g_scn.materialsLegacy(0).transparency := (1.0,1.0,1.0);
+    g_scn.materialsLegacy(0).ior          := 1.75;
+    g_scn.materialsLegacy(0).fresnel      := true;
 
 
     -- floor material
     --
-    g_scn.materials(1).ka := (0.0, 0.0, 0.0);
-    g_scn.materials(1).kd := (0.5, 0.5, 0.5);
+    g_scn.materialsLegacy(1).ka := (0.0, 0.0, 0.0);
+    g_scn.materialsLegacy(1).kd := (0.5, 0.5, 0.5);
 
     -- Left wall
     --
-    g_scn.materials(2).ka := (0.0, 0.0, 0.0);
-    g_scn.materials(2).kd := (0.0, 0.5, 0.0); --0.25 0.65 0.0
+    g_scn.materialsLegacy(2).ka := (0.0, 0.0, 0.0);
+    g_scn.materialsLegacy(2).kd := (0.25, 0.5, 0.0); --0.25 0.65 0.0
 
     -- Right wall
     --
-    g_scn.materials(3).ka := (0.0, 0.0, 0.0);
-    g_scn.materials(3).kd := (0.5, 0.0, 0.0);
+    g_scn.materialsLegacy(3).ka := (0.0, 0.0, 0.0);
+    g_scn.materialsLegacy(3).kd := (0.5, 0.0, 0.0);
 
     -- Light material
     --
-    g_scn.materials(4).kd     := (0.0, 0.0, 0.0);
-    g_scn.materials(4).ka     := (10.0, 10.0, 10.0);
-    g_light.intensity   := g_scn.materials(4).ka;
-    g_light.surfaceArea := (g_light.boxMax.x - g_light.boxMin.x)*(g_light.boxMax.z - g_light.boxMin.z);
+    g_scn.materialsLegacy(4).kd     := (0.0, 0.0, 0.0);
+    g_scn.materialsLegacy(4).ka     := (20.0, 20.0, 20.0);
+    g_light.intensity         := g_scn.materialsLegacy(4).ka;
+    g_light.surfaceArea       := (g_light.boxMax.x - g_light.boxMin.x)*(g_light.boxMax.z - g_light.boxMin.z);
 
     -- Mirror
     --
-    g_scn.materials(5).kd           := (0.0, 0.0, 0.0);
-    g_scn.materials(5).ks           := (0.5,0.5,0.5);
-    g_scn.materials(5).reflection   := (0.5,0.5,0.5);
-    g_scn.materials(5).roughness    := 0.25;
-    g_scn.materials(5).transparency := (0.0,0.0,0.0);
-    g_scn.materials(5).ior          := 1.5;
+    g_scn.materialsLegacy(5).kd           := (0.0, 0.0, 0.0);
+    g_scn.materialsLegacy(5).ks           := (0.5,0.5,0.5);
+    g_scn.materialsLegacy(5).reflection   := (0.5,0.5,0.5);
+    g_scn.materialsLegacy(5).roughness    := 0.25;
+    g_scn.materialsLegacy(5).transparency := (0.0,0.0,0.0);
+    g_scn.materialsLegacy(5).ior          := 1.5;
 
     -- Glass 2
     --
-    g_scn.materials(6).kd := (0.0, 0.0, 0.0);
-    g_scn.materials(6).ks := (0.0, 0.0, 0.0);
-    g_scn.materials(6).reflection := (0.0,0.0,0.0);
-    g_scn.materials(6).roughness  := 0.5;
-    g_scn.materials(6).transparency := (0.85,0.85,0.85);
-    g_scn.materials(6).ior := 1.75;
+    g_scn.materialsLegacy(6).kd := (0.0, 0.0, 0.0);
+    g_scn.materialsLegacy(6).ks := (0.0, 0.0, 0.0);
+    g_scn.materialsLegacy(6).reflection := (0.0,0.0,0.0);
+    g_scn.materialsLegacy(6).roughness  := 0.5;
+    g_scn.materialsLegacy(6).transparency := (0.85,0.85,0.85);
+    g_scn.materialsLegacy(6).ior := 1.75;
 
     -- blue
     --
-    g_scn.materials(7).ka := (0.0, 0.0, 0.0);
-    g_scn.materials(7).kd := (0.0, 0.0, 0.5);
+    g_scn.materialsLegacy(7).ka := (0.0, 0.0, 0.0);
+    g_scn.materialsLegacy(7).kd := (0.0, 0.0, 0.5);
+
 
     -- init spheres geometry
     --
@@ -422,13 +312,63 @@ package body Ray_Tracer is
 
     g_scn.spheres := new Spheres_Array(0..1);
 
+
+    -- new api materials
+    -- this should cause memry leak, but i'm too lazy to implement memory management for this case
+    --
+    declare
+      lmatRef   : MaterialAreaLightRef := new MaterialAreaLight;
+
+      dmatWhite : MaterialLambertRef   := new MaterialLambert;
+      dmatRed   : MaterialLambertRef   := new MaterialLambert;
+      dmatGreen : MaterialLambertRef   := new MaterialLambert;
+
+      smatMirr  : MaterialMirrorRef    := new MaterialMirror;
+      smatPhong : MaterialPhongRef     := new MaterialPhong;
+      smatGlass : MaterialFresnelDielectricRef := new MaterialFresnelDielectric;
+
+    begin
+
+      lmatRef.emission    := (20.0, 20.0, 20.0);
+      g_light.intensity   := lmatRef.emission;
+      g_light.surfaceArea := (g_light.boxMax.x - g_light.boxMin.x)*(g_light.boxMax.z - g_light.boxMin.z);
+
+      dmatWhite.kd := (0.5, 0.5, 0.5);
+      dmatRed.kd   := (0.5, 0.0, 0.0);
+      dmatGreen.kd := (0.25, 0.5, 0.0);
+
+      smatMirr.reflection  := (0.75, 0.75, 0.75);
+      smatPhong.reflection := (0.75, 0.75, 0.75);
+      smatPhong.cosPower   := 80.0;
+
+      smatGlass.reflection   := (0.95, 0.95, 0.95);
+      smatGlass.transparency := (0.75, 0.75, 0.75);
+      smatGlass.ior          := 1.75;
+
+      g_scn.materials(0) := MaterialRef(smatGlass);
+      g_scn.materials(1) := MaterialRef(dmatWhite);
+      g_scn.materials(2) := MaterialRef(dmatRed);
+      g_scn.materials(3) := MaterialRef(dmatGreen);
+      g_scn.materials(4) := MaterialRef(lmatRef);
+      g_scn.materials(5) := MaterialRef(smatMirr);
+      g_scn.materials(8) := MaterialRef(smatPhong);
+      g_scn.materials(9) := MaterialRef(dmatWhite);
+      g_scn.materials(10):= MaterialRef(dmatWhite);
+
+      g_scn.spheres(0).mat := MaterialRef(smatMirr);
+      g_scn.spheres(1).mat := MaterialRef(smatGlass);
+
+    end;
+
+    --materials(0) :=
+
     g_scn.spheres(0).pos := (-1.5,1.0,1.5);
     g_scn.spheres(0).r   := 1.0;
-    g_scn.spheres(0).mat := g_scn.materials(5); -- 5, 3
+    g_scn.spheres(0).matLeg := g_scn.materialsLegacy(5); -- 5, 3
 
     g_scn.spheres(1).pos := (1.4,1.0,3.0);
     g_scn.spheres(1).r   := 1.0;
-    g_scn.spheres(1).mat := g_scn.materials(0); -- 0, 1
+    g_scn.spheres(1).matLeg := g_scn.materialsLegacy(0); -- 0, 1
 
     g_scn.lights(0).color := (2.5, 2.5, 2.5);
     g_scn.lights(0).pos   := (0.0, 4.97, 2.25);

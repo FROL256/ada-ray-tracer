@@ -16,14 +16,15 @@ private package Ray_Tracer.Intersections is
 
 private
 
-  null_hit : Hit := ( prim_type => Plane_TypeId,
+  null_hit : Hit := ( prim_type  => Plane_TypeId,
                       prim_index => -1,
-	      	      is_hit    => false,
-	      	      t         => infinity,
-	      	      mat       => null,
-	              x         => 0.0,
-                      y         => 0.0,
-                      normal    => (0.0, 1.0, 0.0)
+	      	      is_hit     => false,
+	      	      t          => infinity,
+	      	      matLeg     => null,
+                      mat        => null,
+	              x          => 0.0,
+                      y          => 0.0,
+                      normal     => (0.0, 1.0, 0.0)
 	             );
 
 

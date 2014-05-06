@@ -26,6 +26,7 @@ package body Ray_Tracer.Intersections is
                prim_index => 0,
 	       is_hit     => (t > 0.0) and (abs(x) < 200.0) and (abs(y) < 200.0),
 	       t          => t,
+               matLeg     => g_scn.materialsLegacy(0),
                mat        => g_scn.materials(0),
 	       x          => x,
                y          => y,
@@ -87,9 +88,11 @@ package body Ray_Tracer.Intersections is
               prim_index => planeId,
 	      is_hit     => not (planeId = 5),
 	      t          => tmax,
-	      mat        => g_scn.materials(boxData.mat_indices(planeId)),
+	      matLeg     => g_scn.materialsLegacy(boxData.mat_indices(planeId)),
+              mat        => g_scn.materials(boxData.mat_indices(planeId)),
               normal     => boxData.normals(planeId),
-	      x => 0.0, y => 0.0
+	      x          => 0.0,
+              y          => 0.0
 	    );
     else
       return null_hit;
@@ -116,7 +119,8 @@ package body Ray_Tracer.Intersections is
              prim_index => 0,
 	     is_hit     => is_hit,
 	     t          => tmin,
-	     mat        => g_scn.materials(4),
+	     matLeg     => g_scn.materialsLegacy(4),
+             mat        => g_scn.materials(4),
              normal     => (0.0,-1.0,0.0),
              x => 0.0,y => 0.0
 	   );
@@ -167,7 +171,8 @@ package body Ray_Tracer.Intersections is
              prim_index => min_i,
 	     is_hit     => is_hit,
 	     t          => min_t,
-	     mat        => a_spheres(min_i).mat,
+	     matLeg     => a_spheres(min_i).matLeg,
+             mat        => a_spheres(min_i).mat,
              normal     => normalize((r.origin + r.direction*min_t) - a_spheres(min_i).pos),
              x => 0.0, y => 0.0
 	   );

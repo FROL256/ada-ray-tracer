@@ -18,13 +18,6 @@ private package Ray_Tracer.Integrators is
   ---------------------------------------------------------------------------------------------------------------------------------------------
   ---------------------------------------------------------------------------------------------------------------------------------------------
 
-  type PathResult is record
-    color    : float3  := (0.0, 0.0, 0.0);
-    dist     : float   := 0.0;
-    lightCos : float   := 0.0;
-    hitLight : boolean := false;
-  end record;
-
 
   -- integrators
   --
@@ -34,24 +27,24 @@ private package Ray_Tracer.Integrators is
 
   type IntegratorRef is access Integrator'Class;
 
-  function PathTrace(self : Integrator; r : Ray; recursion_level : Integer) return PathResult is abstract;
+  function PathTrace(self : Integrator; r : Ray; recursion_level : Integer) return float3 is abstract;
   procedure Init(self : in out Integrator) is abstract;
   procedure DoPass(self : in out Integrator; colBuff : AccumBuffRef);
 
 
   -- stupid path tracer
   --
-  type SimplePathTracer is new Integrator with null record;
+  type SimplePathTracerLegacy is new Integrator with null record;
 
-  procedure Init(self : in out SimplePathTracer);
-  function PathTrace(self : SimplePathTracer; r : Ray; recursion_level : Integer) return PathResult;
+  procedure Init(self : in out SimplePathTracerLegacy);
+  function PathTrace(self : SimplePathTracerLegacy; r : Ray; recursion_level : Integer) return float3;
 
   -- path tracer with shadow rays
   --
   type PathTracerWithShadowRays is new Integrator with null record;
 
   procedure Init(self : in out PathTracerWithShadowRays);
-  function PathTrace(self : PathTracerWithShadowRays; r : Ray; recursion_level : Integer) return PathResult;
+  function PathTrace(self : PathTracerWithShadowRays; r : Ray; recursion_level : Integer) return float3;
 
 
   -- path tracer with MIS
@@ -59,7 +52,7 @@ private package Ray_Tracer.Integrators is
   type PathTracerMIS is new Integrator with null record;
 
   procedure Init(self : in out PathTracerMIS);
-  function PathTrace(self : PathTracerMIS; r : Ray; recursion_level : Integer) return PathResult;
+  function PathTrace(self : PathTracerMIS; r : Ray; recursion_level : Integer) return float3;
 
 
   -- simple MLT implementation copying image
@@ -71,21 +64,21 @@ private package Ray_Tracer.Integrators is
   end record;
 
   procedure Init(self : in out MLTCopyImage);
-  function PathTrace(self : MLTCopyImage; r : Ray; recursion_level : Integer) return PathResult;
+  function PathTrace(self : MLTCopyImage; r : Ray; recursion_level : Integer) return float3;
 
   procedure DoPass(self : in out MLTCopyImage; colBuff : AccumBuffRef);
 
 
   -- MLT path tracing; no shadow rays, no MIS
   --
-  type MLTSimple is new SimplePathTracer with record
+  type MLTSimple is new SimplePathTracerLegacy with record
     mltHist : AccumBuffRef  := null;
     brightnessEstim : float := 0.0;
     mutationsPerPixel : integer := g_mltMutationsPerPixel;
   end record;
 
 
-  function PathTrace(self : MLTSimple; r : Ray; recursion_level : Integer) return PathResult;
+  function PathTrace(self : MLTSimple; r : Ray; recursion_level : Integer) return float3;
   procedure Init(self : in out MLTSimple);
   procedure DoPass(self : in out MLTSimple; colBuff : AccumBuffRef);
 
@@ -113,9 +106,9 @@ private package Ray_Tracer.Integrators is
                        oldI          : in out float;
                        totalSamples  : in integer;
                        contrib       : in float3;
-                       oldsample     : in out Sample;
+                       oldsample     : in out MLTSample;
                        cumulativeWeight : in out float;
-                       contribsample : out Sample;
+                       contribsample : out MLTSample;
                        spectrum : in out AccumBuffRef);
 
 
@@ -123,7 +116,7 @@ private package Ray_Tracer.Integrators is
   -- simple Kelmen style MLT; no shadow rays, no MIS
   --
 
-  type MLTKelmenSimple is new SimplePathTracer with record
+  type MLTKelmenSimple is new SimplePathTracerLegacy with record
     mltHist : AccumBuffRef  := null;
     lumArray : FloatBuffRef := null;
     brightnessEstim : float := 0.0;
@@ -131,7 +124,7 @@ private package Ray_Tracer.Integrators is
   end record;
 
 
-  function PathTrace(self : MLTKelmenSimple; r : Ray; recursion_level : Integer) return PathResult;
+  function PathTrace(self : MLTKelmenSimple; r : Ray; recursion_level : Integer) return float3;
   procedure Init(self : in out MLTKelmenSimple);
   procedure DoPass(self : in out MLTKelmenSimple; colBuff : AccumBuffRef);
 

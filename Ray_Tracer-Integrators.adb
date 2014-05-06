@@ -41,7 +41,7 @@ package body Ray_Tracer.Integrators is
 
             for i in 0 .. 3 loop
               r.direction := normalize(g_cam.matrix*rayDirs(i));
-              color := color + PathTrace(Integrator'Class(self), r, max_depth).color;
+              color := color + PathTrace(Integrator'Class(self), r, max_depth);
             end loop;
 
             colBuff(x,y) := color*0.25;
@@ -51,7 +51,7 @@ package body Ray_Tracer.Integrators is
             r.x := x; r.y := y;
             r.direction  := EyeRayDirection(x,y);
             r.direction  := normalize(g_cam.matrix*r.direction);
-            colBuff(x,y) := PathTrace(Integrator'Class(self), r, max_depth).color;
+            colBuff(x,y) := PathTrace(Integrator'Class(self), r, max_depth);
 
           end if;
 
@@ -64,12 +64,12 @@ package body Ray_Tracer.Integrators is
   -- very basic path tracing
   --
 
-  procedure Init(self : in out SimplePathTracer) is
+  procedure Init(self : in out SimplePathTracerLegacy) is
   begin
     null;
   end Init;
 
-  function PathTrace(self : SimplePathTracer; r : Ray; recursion_level : Integer) return PathResult is
+  function PathTrace(self : SimplePathTracerLegacy; r : Ray; recursion_level : Integer) return float3 is
     res_color : float3 := (0.0, 0.0, 0.0);
     hit_pos,bxdf,refl,trans : float3;
     h : Hit;
@@ -82,19 +82,19 @@ package body Ray_Tracer.Integrators is
   begin
 
     if recursion_level = 0 then
-      return ((0.0, 0.0, 0.0), 0.0, 0.0, false);
+      return (0.0, 0.0, 0.0);
     end if;
 
 
     h := Intersections.FindClosestHit(r);
 
     if not h.is_hit then
-      return ((0.0, 0.0, 0.0), 0.0, 0.0, false);
-    elsif IsLight(h.mat) then
+      return (0.0, 0.0, 0.0);
+    elsif IsLight(h.matLeg) then
       if dot(r.direction, (0.0,1.0,0.0)) < 0.0 then
-        return ((0.0, 0.0, 0.0), h.t, 0.0, false);
+        return (0.0, 0.0, 0.0);
       else
-        return (Emittance(h.mat), h.t, dot(h.normal, (-1.0)*r.direction), true);
+        return Emittance(h.matLeg);
       end if;
     end if;
 
@@ -108,15 +108,15 @@ package body Ray_Tracer.Integrators is
 
     -- pick up next ray
     --
-    if length(h.mat.reflection) > 0.0 and not h.mat.fresnel then -- specular reflection
+    if length(h.matLeg.reflection) > 0.0 and not h.matLeg.fresnel then -- specular reflection
       nextRay.direction := reflect(r.direction, h.normal);
       nextRay.origin    := hit_pos + epsilon*h.normal;
-      bxdf              := h.mat.reflection;
-    elsif h.mat.fresnel then -- reflection or transmittion
+      bxdf              := h.matLeg.reflection;
+    elsif h.matLeg.fresnel then -- reflection or transmittion
 
-      refl  := h.mat.reflection;
-      trans := h.mat.transparency;
-      ApplyFresnel(h.mat, dot(r.direction, h.normal), refl, trans);
+      refl  := h.matLeg.reflection;
+      trans := h.matLeg.transparency;
+      ApplyFresnel(h.matLeg, dot(r.direction, h.normal), refl, trans);
 
       ksitrans := length(trans) / (length(refl) + length(trans));
       ksirefl  := length(refl) / (length(refl) + length(trans));
@@ -129,11 +129,11 @@ package body Ray_Tracer.Integrators is
         bxdf              := refl*(1.0/ksirefl);
       else
         bxdf              := trans*(1.0/ksitrans);
-        if not TotalInternalReflection(h.mat.ior, r.direction, h.normal) then
+        if not TotalInternalReflection(h.matLeg.ior, r.direction, h.normal) then
           if dot(h.normal, r.direction) > 0.0 then
             sign := -1.0;
           end if;
-	  refract(h.mat.ior, r.direction, h.normal, wt => nextRay.direction);
+	  refract(h.matLeg.ior, r.direction, h.normal, wt => nextRay.direction);
           nextRay.origin := hit_pos - epsilon*sign*h.normal;
         else
           nextRay.direction := reflect(r.direction, h.normal);
@@ -145,10 +145,10 @@ package body Ray_Tracer.Integrators is
     else  -- diffuse reflection
       nextRay.direction := RandomCosineVectorOf(self.gen, h.normal);
       nextRay.origin    := hit_pos + epsilon*h.normal;
-      bxdf := h.mat.kd;
+      bxdf := h.matLeg.kd;
     end if;
 
-    return (bxdf*self.PathTrace(nextRay, recursion_level-1).color, h.t, dot(h.normal, (-1.0)*r.direction), false); -- (1.0/(1.0-pabsorb))
+    return bxdf*self.PathTrace(nextRay, recursion_level-1); -- (1.0/(1.0-pabsorb))
 
   end PathTrace;
 
@@ -174,7 +174,7 @@ package body Ray_Tracer.Integrators is
     null;
   end Init;
 
-  function PathTrace(self : PathTracerWithShadowRays; r : Ray; recursion_level : Integer) return PathResult is
+  function PathTrace(self : PathTracerWithShadowRays; r : Ray; recursion_level : Integer) return float3 is
     res_color : float3 := (0.0, 0.0, 0.0);
     hit_pos,bxdf,refl,trans : float3;
     h : Hit;
@@ -185,15 +185,15 @@ package body Ray_Tracer.Integrators is
   begin
 
     if recursion_level = 0 then
-      return ((0.0, 0.0, 0.0), 0.0, 0.0, false);
+      return (0.0, 0.0, 0.0);
     end if;
 
     h := Intersections.FindClosestHit(r);
 
     if not h.is_hit then
-      return ((0.0, 0.0, 0.0), 0.0, 0.0, false);
-    elsif IsLight(h.mat) then
-      return ((0.0, 0.0, 0.0), h.t, dot(h.normal, (-1.0)*r.direction), true);
+      return (0.0, 0.0, 0.0);
+    elsif IsLight(h.matLeg) then
+      return (0.0, 0.0, 0.0);
     end if;
 
     hit_pos := (r.origin + r.direction*h.t);
@@ -210,7 +210,7 @@ package body Ray_Tracer.Integrators is
     begin
 
       if not ComputeShadow(hit_pos, lpos).in_shadow then
-        res_color := res_color + (h.mat.kd*g_light.intensity)*impP;
+        res_color := res_color + (h.matLeg.kd*g_light.intensity)*impP;
       end if;
 
     end;
@@ -218,15 +218,15 @@ package body Ray_Tracer.Integrators is
 
     -- pick up next ray
     --
-    if length(h.mat.reflection) > 0.0 and not h.mat.fresnel then -- specular reflection
+    if length(h.matLeg.reflection) > 0.0 and not h.matLeg.fresnel then -- specular reflection
       nextRay.direction := reflect(r.direction, h.normal);
       nextRay.origin    := hit_pos + epsilon*h.normal;
-      bxdf              := h.mat.reflection;
-    elsif h.mat.fresnel then -- reflection or transmittion
+      bxdf              := h.matLeg.reflection;
+    elsif h.matLeg.fresnel then -- reflection or transmittion
 
-      refl  := h.mat.reflection;
-      trans := h.mat.transparency;
-      ApplyFresnel(h.mat, dot(r.direction, h.normal), refl, trans);
+      refl  := h.matLeg.reflection;
+      trans := h.matLeg.transparency;
+      ApplyFresnel(h.matLeg, dot(r.direction, h.normal), refl, trans);
 
       ksitrans := length(trans) / (length(refl) + length(trans));
       ksirefl  := length(refl) / (length(refl) + length(trans));
@@ -239,11 +239,11 @@ package body Ray_Tracer.Integrators is
         bxdf              := refl*(1.0/ksirefl);
       else
         bxdf              := trans*(1.0/ksitrans);
-        if not TotalInternalReflection(h.mat.ior, r.direction, h.normal) then
+        if not TotalInternalReflection(h.matLeg.ior, r.direction, h.normal) then
           if dot(h.normal, r.direction) > 0.0 then
             sign := -1.0;
           end if;
-	  refract(h.mat.ior, r.direction, h.normal, wt => nextRay.direction);
+	  refract(h.matLeg.ior, r.direction, h.normal, wt => nextRay.direction);
           nextRay.origin := hit_pos - epsilon*sign*h.normal;
         else
           nextRay.direction := reflect(r.direction, h.normal);
@@ -255,10 +255,10 @@ package body Ray_Tracer.Integrators is
     else  -- diffuse reflection
       nextRay.direction := RandomCosineVectorOf(self.gen, h.normal);
       nextRay.origin    := hit_pos + epsilon*h.normal;
-      bxdf := h.mat.kd;
+      bxdf := h.matLeg.kd;
     end if;
 
-    return (res_color + bxdf*self.PathTrace(nextRay, recursion_level-1).color, h.t, dot(h.normal, (-1.0)*r.direction), false);
+    return res_color + bxdf*self.PathTrace(nextRay, recursion_level-1);
 
   end PathTrace;
 
@@ -275,7 +275,7 @@ package body Ray_Tracer.Integrators is
     null;
   end Init;
 
-  function PathTrace(self : PathTracerMIS; r : Ray; recursion_level : Integer) return PathResult is
+  function PathTrace(self : PathTracerMIS; r : Ray; recursion_level : Integer) return float3 is
     res_color : float3 := (0.0, 0.0, 0.0);
     hit_pos,bxdf,refl,trans : float3;
     h : Hit;
@@ -285,7 +285,6 @@ package body Ray_Tracer.Integrators is
     ksitrans,ksirefl : float;
     explicitColor : float3 := (0.0, 0.0, 0.0);
     bsdfColor : float3 := (0.0, 0.0, 0.0);
-    ret : PathResult;
 
     specularBounce  : boolean := false;
 
@@ -303,18 +302,18 @@ package body Ray_Tracer.Integrators is
   begin
 
     if recursion_level = 0 then
-      return ((0.0, 0.0, 0.0), 0.0, 0.0, false);
+      return (0.0, 0.0, 0.0);
     end if;
 
     h := Intersections.FindClosestHit(r);
 
     if not h.is_hit then
-      return ((0.0, 0.0, 0.0), 0.0, 0.0, false);
-    elsif IsLight(h.mat) then
+      return (0.0, 0.0, 0.0);
+    elsif IsLight(h.matLeg) then
       if dot(r.direction, (0.0,1.0,0.0)) < 0.0 then
-        return ((0.0, 0.0, 0.0), h.t, abs(dot(h.normal, (-1.0)*r.direction)), false);
+        return (0.0, 0.0, 0.0);
       else
-        return (Emittance(h.mat), h.t, abs(dot(h.normal, (-1.0)*r.direction)), true);
+        return Emittance(h.matLeg);
       end if;
     end if;
 
@@ -343,7 +342,7 @@ package body Ray_Tracer.Integrators is
       sHit       := ComputeShadow(hit_pos, lpos);
 
       if not sHit.in_shadow then
-        explicitColor := (h.mat.kd*(1.0/3.1415926535)*g_light.intensity)*cos_theta1*pdfInv; -- impP := g_light.surfaceArea*cos_theta1*cos_theta2/(max(3.1415926535*Ldist*Ldist, 1.0e-37));
+        explicitColor := (h.matLeg.kd*(1.0/3.1415926535)*g_light.intensity)*cos_theta1*pdfInv; -- impP := g_light.surfaceArea*cos_theta1*cos_theta2/(max(3.1415926535*Ldist*Ldist, 1.0e-37));
         res_color     := res_color + explicitColor*w;
       end if;
 
@@ -352,16 +351,16 @@ package body Ray_Tracer.Integrators is
 
     -- pick up next ray
     --
-    if length(h.mat.reflection) > 0.0 and not h.mat.fresnel then -- specular reflection
+    if length(h.matLeg.reflection) > 0.0 and not h.matLeg.fresnel then -- specular reflection
       nextRay.direction := reflect(r.direction, h.normal);
       nextRay.origin    := hit_pos + epsilon*h.normal;
-      bxdf              := h.mat.reflection;
+      bxdf              := h.matLeg.reflection;
       specularBounce    := true;
-    elsif h.mat.fresnel then -- reflection or transmittion
+    elsif h.matLeg.fresnel then -- reflection or transmittion
 
-      refl  := h.mat.reflection;
-      trans := h.mat.transparency;
-      ApplyFresnel(h.mat, dot(r.direction, h.normal), refl, trans);
+      refl  := h.matLeg.reflection;
+      trans := h.matLeg.transparency;
+      ApplyFresnel(h.matLeg, dot(r.direction, h.normal), refl, trans);
 
       ksitrans := length(trans) / (length(refl) + length(trans));
       ksirefl  := length(refl) / (length(refl) + length(trans));
@@ -374,11 +373,11 @@ package body Ray_Tracer.Integrators is
         bxdf              := refl*(1.0/ksirefl);
       else
         bxdf              := trans*(1.0/ksitrans);
-        if not TotalInternalReflection(h.mat.ior, r.direction, h.normal) then
+        if not TotalInternalReflection(h.matLeg.ior, r.direction, h.normal) then
           if dot(h.normal, r.direction) > 0.0 then
             sign := -1.0;
           end if;
-	  refract(h.mat.ior, r.direction, h.normal, wt => nextRay.direction);
+	  refract(h.matLeg.ior, r.direction, h.normal, wt => nextRay.direction);
           nextRay.origin := hit_pos - epsilon*sign*h.normal;
         else
           nextRay.direction := reflect(r.direction, h.normal);
@@ -392,40 +391,11 @@ package body Ray_Tracer.Integrators is
     else  -- diffuse reflection
       nextRay.direction := RandomCosineVectorOf(self.gen, h.normal);
       nextRay.origin    := hit_pos + epsilon*h.normal;
-      bxdf              := h.mat.kd*(1.0/3.1415926536);
+      bxdf              := h.matLeg.kd*(1.0/3.1415926536);
       specularBounce    := false;
     end if;
 
-    ret := self.PathTrace(nextRay, recursion_level-1);
-
-    if specularBounce then
-
-      bsdfColor := bxdf*ret.color;
-      res_color := bsdfColor;
-
-    else
-
-      cos_theta := dot(nextRay.direction, h.normal);
-      bsdf_pdf  := max(cos_theta / 3.1415926536, 1.0e-28);
-      bsdfColor := ret.color*bxdf*cos_theta*(1.0/bsdf_pdf);
-
-      if ret.hitLight then
-
-        lgt_pdf    := ret.dist*ret.dist /(g_light.surfaceArea*ret.lightCos); -- (new_prd.t * new_prd.t / (LnDl * A)
-        w          := sqr(bsdf_pdf)/(sqr(bsdf_pdf) + sqr(lgt_pdf));
-
-        --res_color  := explicitColor;
-        res_color  := res_color + bsdfColor*(1.0/3.1415926536)*w;
-
-      else
-
-        res_color := bsdfColor + explicitColor;
-
-      end if;
-
-    end if;
-
-    return (res_color, h.t, abs(dot(h.normal, (-1.0)*r.direction)), false);
+    return self.PathTrace(nextRay, recursion_level-1);
 
   end PathTrace;
 
@@ -440,9 +410,9 @@ package body Ray_Tracer.Integrators is
   end Init;
 
 
-  function PathTrace(self : MLTCopyImage; r : Ray; recursion_level : Integer) return PathResult is
+  function PathTrace(self : MLTCopyImage; r : Ray; recursion_level : Integer) return float3 is
   begin
-    return ((0.0, 0.0, 0.0), 0.0, 0.0, false); -- not used
+    return (0.0, 0.0, 0.0); -- not used
   end PathTrace;
 
 
@@ -544,9 +514,9 @@ package body Ray_Tracer.Integrators is
 
   -- attempt to make simple MLT working
   --
-  function PathTrace(self : MLTSimple; r : Ray; recursion_level : Integer) return PathResult is
+  function PathTrace(self : MLTSimple; r : Ray; recursion_level : Integer) return float3 is
   begin
-    return PathTrace(SimplePathTracer(self), r, recursion_level);
+    return PathTrace(SimplePathTracerLegacy(self), r, recursion_level);
   end PathTrace;
 
 
@@ -589,7 +559,7 @@ package body Ray_Tracer.Integrators is
 
     -- Create an initial sample point
     --
-    colorX := self.PathTrace(r, max_depth).color;
+    colorX := self.PathTrace(r, max_depth);
     Fx     := Luminance(colorX);
     colorX := colorX*(1.0/Fx);
 
@@ -609,7 +579,7 @@ package body Ray_Tracer.Integrators is
       r.direction  := EyeRayDirection(y0,y1);
       r.direction  := normalize(g_cam.matrix*r.direction);
 
-      colorY := self.PathTrace(r, max_depth).color;
+      colorY := self.PathTrace(r, max_depth);
       Fy     := Luminance(colorY);
       colorY := colorY*(1.0/Fy);
 
@@ -920,13 +890,13 @@ package body Ray_Tracer.Integrators is
                        oldI          : in out float;
                        totalSamples  : in integer;
                        contrib       : in float3;
-                       oldsample     : in out Sample;
+                       oldsample     : in out MLTSample;
                        cumulativeWeight : in out float;
-                       contribsample : out Sample;
+                       contribsample : out MLTSample;
                        spectrum : in out AccumBuffRef) is
 
     a         : float;
-    newsample : Sample;
+    newsample : MLTSample;
     accept_b : boolean;
     b         : float := 0.2;
     plarge    : float := 0.5;
@@ -1001,10 +971,10 @@ package body Ray_Tracer.Integrators is
 
   -- just call SimplePathTracer's implementation
   --
-  function PathTrace(self : MLTKelmenSimple; r : Ray; recursion_level : Integer) return PathResult is
+  function PathTrace(self : MLTKelmenSimple; r : Ray; recursion_level : Integer) return float3 is
   begin
       --return PathTrace(PathTracerMIS(self), r, recursion_level);
-      return PathTrace(SimplePathTracer(self), r, recursion_level);
+      return PathTrace(SimplePathTracerLegacy(self), r, recursion_level);
   end PathTrace;
 
 
@@ -1014,8 +984,8 @@ package body Ray_Tracer.Integrators is
     Fx, Fy : float  := 0.0;
     colorX : float3 := (0.0, 0.0, 0.0);
     colorY : float3 := (0.0, 0.0, 0.0);
-    oldsample : Sample := ((0.0, 0.0, 0.0), 0.0, 0, 0);
-    newsample : Sample := ((0.0, 0.0, 0.0), 0.0, 0, 0);
+    oldsample : MLTSample := ((0.0, 0.0, 0.0), 0.0, 0, 0);
+    newsample : MLTSample := ((0.0, 0.0, 0.0), 0.0, 0, 0);
     cumulativeWeight : float;
 
 
@@ -1074,7 +1044,7 @@ package body Ray_Tracer.Integrators is
       r.direction  := EyeRayDirection(x0,x1);
       r.direction  := normalize(g_cam.matrix*r.direction);
 
-      colorX := self.PathTrace(r, max_depth).color;
+      colorX := self.PathTrace(r, max_depth);
       Fx     := Luminance(colorX);
 
     end loop;
@@ -1116,7 +1086,7 @@ package body Ray_Tracer.Integrators is
       	r.direction  := EyeRayDirection(y0,y1);
       	r.direction  := normalize(g_cam.matrix*r.direction);
 
-      	colorY := self.PathTrace(r, max_depth).color;
+      	colorY := self.PathTrace(r, max_depth);
         Fy     := Luminance(colorY);
 
       	if Fy > 0.0 then

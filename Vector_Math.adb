@@ -21,6 +21,11 @@ package body Vector_Math is
     end if;
   end;
 
+  function pow(a,b : float) return float is
+  begin
+    return a ** b;
+  end pow;
+
   function normalize (a : float3) return float3 is
     l_inv : float;
   begin
@@ -108,6 +113,126 @@ package body Vector_Math is
     res.z := m(2,0)*n.x + m(2,1)*n.y + m(2,2)*n.z;
     return res;
   end;
+
+
+
+  ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  ----------------------------------------------------------------- Monte-Carlo Path Tracing -----------------------------------------------------------------------------------
+  ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  --
+
+  ---- this function is for path tracing parameters; it can be redefifed in further subclasses
+  --
+
+  function rnd_uniform(gen : access RandomGenerator; l,h : float) return float is
+    t : float;
+  begin
+    t := Ada.Numerics.Float_Random.Random(Gen => gen.agen);
+    return l + (h-l)*t;
+  end rnd_uniform;
+
+  ---- this function is used for simple random and must not be redefined
+  --
+  function rnd_uniform_simple(gen : RandomGenerator; l,h : float) return float is
+    t: float := 0.0;
+  begin
+    t := Ada.Numerics.Float_Random.Random(Gen => gen.agen);
+    return l + (h-l)*t;
+  end rnd_uniform_simple;
+
+  ----
+  --
+  procedure ResetSequenceCounter(gen : in out RandomGenerator) is
+  begin
+    null;
+  end ResetSequenceCounter;
+
+  procedure InitSequence(gen : in out RandomGenerator) is
+  begin
+    null;
+  end InitSequence;
+
+  procedure NextSample(gen           : in out RandomGenerator;
+                       I             : in float;
+                       oldI          : in out float;
+                       totalSamples  : in integer;
+                       contrib       : in float3;
+                       oldsample     : in out MLTSample;
+                       contribsample : out MLTSample) is
+  begin
+    null;
+  end NextSample;
+
+  procedure RestoreSequence(gen : in out RandomGenerator) is
+  begin
+    null;
+  end  RestoreSequence;
+
+  procedure ClearStack(gen : in out RandomGenerator) is
+  begin
+    null;
+  end ClearStack;
+
+  procedure ResetAllModifyCounters(gen : in out RandomGenerator) is
+  begin
+    null;
+  end ResetAllModifyCounters;
+
+
+
+
+  function MapSampleToCosineDist(r1,r2 : float; direction, normal : float3; power : float) return float3 is
+   e,sin_phi,cos_phi: float;
+   sin_theta,cos_theta : float;
+   deviation,nx,ny,nz,tmp,res : float3;
+   invSign : float;
+  begin
+
+    e := power;
+    sin_phi := sin(2.0*r1*M_PI);
+    cos_phi := cos(2.0*r1*M_PI);
+
+    cos_theta := (1.0-r2) ** (1.0/(e+1.0));
+    sin_theta := sqrt(1.0-cos_theta*cos_theta);
+
+    deviation := (sin_theta*cos_phi, sin_theta*sin_phi, cos_theta);
+
+    ny := direction;
+    nx := normalize(cross(ny, (1.04,2.93,-0.6234)));
+    nz := normalize(cross(nx, ny));
+
+    tmp := ny; ny := nz; nz := tmp; -- swap(ny,nz);  // depends on the coordinate system
+
+    res := nx*deviation.x + ny*deviation.y + nz*deviation.z;
+
+    if dot(direction, normal) > 0.0 then
+      invSign := 1.0;
+    else
+      invSign := -1.0;
+    end if;
+
+    if invSign*dot(res, normal) < 0.0 then
+      res := (-1.0)*nx*deviation.x + ny*deviation.y - nz*deviation.z;
+    end if;
+
+    return res;
+
+  end MapSampleToCosineDist;
+
+  function RandomCosineVectorOf(gen : RandRef; norm : float3) return float3 is
+    r1 : float := gen.rnd_uniform(0.0, 1.0);
+    r2 : float := gen.rnd_uniform(0.0, 1.0);
+  begin
+    return MapSampleToCosineDist(r1,r2,norm,norm,1.0);
+  end RandomCosineVectorOf;
+
+  function RandomCosineVectorOf(gen : RandRef; refl : float3;  norm : float3; cosPower : float) return float3 is
+    r1 : float := gen.rnd_uniform(0.0, 1.0);
+    r2 : float := gen.rnd_uniform(0.0, 1.0);
+  begin
+    return MapSampleToCosineDist(r1,r2,refl,norm,cosPower);
+  end RandomCosineVectorOf;
 
 
 end Vector_Math;

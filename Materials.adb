@@ -142,7 +142,7 @@ package body Materials is
 
 
 
-  procedure ApplyFresnel(mat: in MaterialRef; cosTheta : float; ks : in out float3; kt : in out float3) is
+  procedure ApplyFresnel(mat: in MaterialLegacyRef; cosTheta : float; ks : in out float3; kt : in out float3) is
     etaInt : float := 1.0;
     etaExt : float := mat.ior;
     f      : float;
@@ -153,15 +153,228 @@ package body Materials is
   end ApplyFresnel;
 
 
-  function IsLight(mat : MaterialRef) return Boolean is
+  function IsLight(mat : MaterialLegacyRef) return Boolean is
   begin
     return length(mat.ka) > 0.0;
   end IsLight;
 
-  function Emittance(mat : MaterialRef) return float3 is
+  function Emittance(mat : MaterialLegacyRef) return float3 is
   begin
     return mat.ka;
   end Emittance;
+
+
+
+
+  ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+  ------------------------------------
+  ---- Simple Area Light Material ----
+  ------------------------------------
+
+  function IsLight(mat : MaterialAreaLight) return Boolean is
+  begin
+    return true;
+  end IsLight;
+
+  function Emittance(mat : MaterialAreaLight) return float3 is
+  begin
+    return mat.emission;
+  end Emittance;
+
+  function SampleAndEvalBxDF(mat : MaterialAreaLight; gen : RandRef; ray_dir, normal : float3) return MatSample is
+  begin
+    return ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), 1.0, 0.0, false);
+  end SampleAndEvalBxDF;
+
+  function EvalBxDF(mat : MaterialAreaLight; l,v,n : float3) return float3 is
+  begin
+    return (0.0, 0.0, 0.0);
+  end EvalBxDF;
+
+
+  --------------------------
+  ---- Diffuse Material ----
+  --------------------------
+
+  function IsLight(mat : MaterialLambert) return Boolean is
+  begin
+    return false;
+  end IsLight;
+
+  function Emittance(mat : MaterialLambert) return float3 is
+  begin
+    return (0.0, 0.0, 0.0);
+  end Emittance;
+
+  function SampleAndEvalBxDF(mat : MaterialLambert; gen : RandRef; ray_dir, normal : float3) return MatSample is
+    pdf      : float;
+    cosTheta : float;
+    newDir   : float3;
+    color    : float3;
+  begin
+
+    newDir   := RandomCosineVectorOf(gen, normal);
+    cosTheta := max(dot(newDir, normal), 0.0);
+    pdf      := cosTheta*INV_PI;
+    color    := mat.kd*cosTheta*INV_PI;
+
+    return (color, newDir, cosTheta, pdf, false);
+
+  end SampleAndEvalBxDF;
+
+  function EvalBxDF(mat : MaterialLambert; l,v,n : float3) return float3 is
+    cosTheta : float := max(dot(n,l), 0.0);
+  begin
+    return mat.kd*cosTheta*INV_PI;
+  end EvalBxDF;
+
+
+
+  ----------------------
+  ---- Ideal Mirror ----
+  ----------------------
+
+  function IsLight(mat : MaterialMirror) return Boolean is
+  begin
+    return false;
+  end IsLight;
+
+  function Emittance(mat : MaterialMirror) return float3 is
+  begin
+    return (0.0, 0.0, 0.0);
+  end Emittance;
+
+  function SampleAndEvalBxDF(mat : MaterialMirror; gen : RandRef; ray_dir, normal : float3) return MatSample is
+  begin
+    return (mat.reflection, reflect(ray_dir, normal), 1.0, 1.0, true);
+  end SampleAndEvalBxDF;
+
+  function EvalBxDF(mat : MaterialMirror; l,v,n : float3) return float3 is
+  begin
+    return (0.0, 0.0, 0.0);
+  end EvalBxDF;
+
+
+  -----------------------------
+  ---- Ideal Fresnel Glass ----
+  -----------------------------
+
+  function IsLight(mat : MaterialFresnelDielectric) return Boolean is
+  begin
+    return false;
+  end IsLight;
+
+  function Emittance(mat : MaterialFresnelDielectric) return float3 is
+  begin
+    return (0.0, 0.0, 0.0);
+  end Emittance;
+
+
+  procedure ApplyFresnel(mat: in MaterialFresnelDielectric; cosTheta : float; ks : in out float3; kt : in out float3) is
+    etaInt : float := 1.0;
+    etaExt : float := mat.ior;
+    f      : float;
+  begin
+    f  := fresnel(cosTheta, etaExt, etaInt);
+    ks := f*ks;
+    kt := (1.0-f)*kt;
+  end ApplyFresnel;
+
+  function SampleAndEvalBxDF(mat : MaterialFresnelDielectric; gen : RandRef; ray_dir, normal : float3) return MatSample is
+    refl, trans : float3;
+    ksitrans, ksirefl, ksi : float;
+    nextDirection, bxdf : float3;
+  begin
+
+    refl  := mat.reflection;
+    trans := mat.transparency;
+
+    ApplyFresnel(mat, dot(ray_dir, normal), refl, trans);
+
+    ksitrans := length(trans) / (length(refl) + length(trans));
+    ksirefl  := length(refl) / (length(refl) + length(trans));
+
+    ksi := gen.rnd_uniform(0.0, 1.0);
+
+    if ksi > ksitrans then
+      nextDirection := reflect(ray_dir, normal);
+      bxdf          := refl*(1.0/ksirefl);
+    else
+
+      bxdf := trans*(1.0/ksitrans);
+
+      if not TotalInternalReflection(mat.ior, ray_dir, normal) then
+    	refract(mat.ior, ray_dir, normal, wt => nextDirection);
+      else
+        nextDirection := reflect(ray_dir, normal);
+      end if;
+
+    end if;
+
+    return (bxdf, nextDirection, 1.0, 1.0, true);
+
+  end SampleAndEvalBxDF;
+
+  function EvalBxDF(mat : MaterialFresnelDielectric; l,v,n : float3) return float3 is
+    r : float3 := reflect((-1.0)*v, n);
+  begin
+    return (0.0, 0.0, 0.0);
+  end EvalBxDF;
+
+
+
+
+  -----------------------------
+  ---- 'Fixed' Phong Model ----
+  -----------------------------
+
+  function IsLight(mat : MaterialPhong) return Boolean is
+  begin
+    return false;
+  end IsLight;
+
+  function Emittance(mat : MaterialPhong) return float3 is
+  begin
+    return (0.0, 0.0, 0.0);
+  end Emittance;
+
+  function SampleAndEvalBxDF(mat : MaterialPhong; gen : RandRef; ray_dir, normal : float3) return MatSample is
+    pdf, cosTheta : float;
+    nextDir, r    : float3;
+    color : float3;
+  begin
+
+    r        := reflect(ray_dir, normal);
+    nextDir  := RandomCosineVectorOf(gen, r, normal, mat.cosPower);
+
+    cosTheta := dot(nextDir, r);
+    color    := mat.reflection*(mat.cosPower + 2.0)*0.5*INV_PI*pow(clamp(cosTheta, 0.0, M_PI*0.499995), mat.cosPower);
+    pdf      := pow(cosTheta, mat.cosPower) * (mat.cosPower + 1.0) * (0.5 * INV_PI);
+
+    return (color, nextDir, cosTheta, pdf, false);
+
+  end SampleAndEvalBxDF;
+
+  function EvalBxDF(mat : MaterialPhong; l,v,n : float3) return float3 is
+    r : float3;
+    cosTheta : float;
+  begin
+    r        := reflect((-1.0)*v, n);
+    cosTheta := dot(l, r);
+    return mat.reflection*(mat.cosPower + 2.0)*0.5*INV_PI*pow(clamp(cosTheta, 0.0, M_PI*0.499995), mat.cosPower);
+  end EvalBxDF;
+
+
+
+
+
+
+
+
 
 end Materials;
 

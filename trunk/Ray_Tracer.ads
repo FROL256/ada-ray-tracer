@@ -20,7 +20,7 @@ package Ray_Tracer is
 
   compute_shadows  : boolean  := true;
   anti_aliasing_on : boolean  := true;
-  max_depth        : Positive := 8;
+  g_max_depth      : Positive := 8;
 
   background_color : float3   := (0.0,0.0,0.0);
 
@@ -72,7 +72,6 @@ private
   type Sphere is record
     pos : float3;
     r   : float;
-    matLeg : MaterialLegacyRef;
     mat : MaterialRef;
   end record;
 
@@ -116,10 +115,9 @@ private
     is_hit : boolean := false;
     t      : float   := infinity;
     normal : float3  := (0.0, 0.0, 0.0);
-    matLeg : MaterialLegacyRef := null;
-    mat    : MaterialRef       := null;
-    x,y    : float := 0.0;
-    prim_index : integer := -1;
+    mat    : MaterialRef  := null;
+    x,y    : float        := 0.0;
+    prim_index : integer  := -1;
 
   end record;
 
@@ -179,13 +177,11 @@ private
   -- very lite scene description
   --
 
-  type MaterialsLegacy_Array is array (0 .. 10) of MaterialLegacyRef;
-  type Materials_Array       is array (0 .. 10) of MaterialRef;
-  type Lights_Array          is array (0 .. 1)  of Light;
+  type Materials_Array is array (0 .. 10) of MaterialRef;
+  type Lights_Array    is array (0 .. 1)  of Light;
 
   type Scene is record
 
-    materialsLegacy : MaterialsLegacy_Array;
     materials : Materials_Array;
     lights    : Lights_Array;
     spheres   : Spheres_Array_Ptr;

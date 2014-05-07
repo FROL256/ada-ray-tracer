@@ -20,7 +20,6 @@ private
                       prim_index => -1,
 	      	      is_hit     => false,
 	      	      t          => infinity,
-	      	      matLeg     => null,
                       mat        => null,
 	              x          => 0.0,
                       y          => 0.0,

@@ -12,50 +12,6 @@ package body Materials is
   package Float_Functions is new Ada.Numerics.Generic_Elementary_Functions(float);
   use Float_Functions;
 
-  -- Cook-Torrance model
-  --
-  function EvalCookTorranceBRDF(mat: in LegacyMaterial; l,v,normal: float3) return float3 is
-
-    vHalf : float3;
-    NormalDotHalf : float;
-    ViewDotHalf : float;
-    NormalDotView : float;
-    NormalDotLight : float;
-    G1,G2,G : float;
-    F,A,B,R : float;
-    NDotHSquare,RSquare : float;
-
-  begin
-
-    vHalf            := normalize(l+v);
-    NormalDotHalf    := dot(normal, vHalf);
-    ViewDotHalf      := dot(vHalf, v);
-    NormalDotView    := dot(normal, v);
-    NormalDotLight   := dot(normal, l);
-
-    -- Compute the geometric term
-    --
-    G1 := ( 2.0 * NormalDotHalf * NormalDotView ) / ViewDotHalf;
-    G2 := ( 2.0 * NormalDotHalf * NormalDotLight ) / ViewDotHalf;
-    G  := min( 1.0, max( 0.0, min( G1, G2 ) ) );
-
-    -- Compute the fresnel term
-    --
-    F := 1.0/(1.0 + dot(v,normal));
-
-    RSquare     := mat.roughness * mat.roughness;
-    NDotHSquare := NormalDotHalf * NormalDotHalf;
-    A           := 1.0 / ( 4.0 * RSquare * NDotHSquare * NDotHSquare );
-    B           := exp( -( 1.0 - NDotHSquare ) / ( RSquare * NDotHSquare ) );
-    R           := A * B;
-
-    -- Compute the final term
-    --
-    return mat.kd*max(dot(normal,l),0.0) +
-           0.5*mat.ks*( ( G * F * R ) / ( NormalDotLight * NormalDotView ) );
-
-   end EvalCookTorranceBRDF;
-
 
    function TotalInternalReflection(ior: in float; rayDir, normal : float3) return boolean is
      cos_thetai : float;
@@ -140,40 +96,14 @@ package body Materials is
 
   end fresnel;
 
-
-
-  procedure ApplyFresnel(mat: in MaterialLegacyRef; cosTheta : float; ks : in out float3; kt : in out float3) is
-    etaInt : float := 1.0;
-    etaExt : float := mat.ior;
-    f      : float;
-  begin
-    f  := fresnel(cosTheta, etaExt, etaInt);
-    ks := f*ks;
-    kt := (1.0-f)*kt;
-  end ApplyFresnel;
-
-
-  function IsLight(mat : MaterialLegacyRef) return Boolean is
-  begin
-    return length(mat.ka) > 0.0;
-  end IsLight;
-
-  function Emittance(mat : MaterialLegacyRef) return float3 is
-  begin
-    return mat.ka;
-  end Emittance;
-
-
-
-
   ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 
-  ------------------------------------
-  ---- Simple Area Light Material ----
-  ------------------------------------
+  ----------------------------------
+  ---- Simple Emissive Material ----
+  ----------------------------------
 
   function IsLight(mat : MaterialAreaLight) return Boolean is
   begin
@@ -187,7 +117,7 @@ package body Materials is
 
   function SampleAndEvalBxDF(mat : MaterialAreaLight; gen : RandRef; ray_dir, normal : float3) return MatSample is
   begin
-    return ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), 1.0, 0.0, false);
+    return ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), 1.0, false);
   end SampleAndEvalBxDF;
 
   function EvalBxDF(mat : MaterialAreaLight; l,v,n : float3) return float3 is
@@ -195,6 +125,10 @@ package body Materials is
     return (0.0, 0.0, 0.0);
   end EvalBxDF;
 
+  function EvalPDF(mat : MaterialAreaLight; l,v,n : float3) return float is
+  begin
+    return 1.0;
+  end EvalPDF;
 
   --------------------------
   ---- Diffuse Material ----
@@ -222,7 +156,7 @@ package body Materials is
     pdf      := cosTheta*INV_PI;
     color    := mat.kd*cosTheta*INV_PI;
 
-    return (color, newDir, cosTheta, pdf, false);
+    return (color, newDir, pdf, false);
 
   end SampleAndEvalBxDF;
 
@@ -232,7 +166,11 @@ package body Materials is
     return mat.kd*cosTheta*INV_PI;
   end EvalBxDF;
 
-
+  function EvalPDF(mat : MaterialLambert; l,v,n : float3) return float is
+    cosTheta : float := max(dot(n,l), 0.0);
+  begin
+    return cosTheta*INV_PI;
+  end EvalPDF;
 
   ----------------------
   ---- Ideal Mirror ----
@@ -250,14 +188,18 @@ package body Materials is
 
   function SampleAndEvalBxDF(mat : MaterialMirror; gen : RandRef; ray_dir, normal : float3) return MatSample is
   begin
-    return (mat.reflection, reflect(ray_dir, normal), 1.0, 1.0, true);
+    return (mat.reflection, reflect(ray_dir, normal), 1.0, true);
   end SampleAndEvalBxDF;
 
   function EvalBxDF(mat : MaterialMirror; l,v,n : float3) return float3 is
   begin
-    return (0.0, 0.0, 0.0);
+    return (0.0, 0.0, 0.0); -- no direct sampling for perfect mirrors
   end EvalBxDF;
 
+  function EvalPDF(mat : MaterialMirror; l,v,n : float3) return float is
+  begin
+    return 1.0;             -- no direct sampling for perfect mirrors
+  end EvalPDF;
 
   -----------------------------
   ---- Ideal Fresnel Glass ----
@@ -315,17 +257,19 @@ package body Materials is
 
     end if;
 
-    return (bxdf, nextDirection, 1.0, 1.0, true);
+    return (bxdf, nextDirection, 1.0, true);
 
   end SampleAndEvalBxDF;
 
   function EvalBxDF(mat : MaterialFresnelDielectric; l,v,n : float3) return float3 is
-    r : float3 := reflect((-1.0)*v, n);
   begin
-    return (0.0, 0.0, 0.0);
+    return (0.0, 0.0, 0.0); -- no direct sampling for perfect mirrors
   end EvalBxDF;
 
-
+  function EvalPDF(mat : MaterialFresnelDielectric; l,v,n : float3) return float is
+  begin
+    return 1.0;             -- no direct sampling for perfect mirrors
+  end EvalPDF;
 
 
   -----------------------------
@@ -355,12 +299,12 @@ package body Materials is
     color    := mat.reflection*(mat.cosPower + 2.0)*0.5*INV_PI*pow(clamp(cosTheta, 0.0, M_PI*0.499995), mat.cosPower);
     pdf      := pow(cosTheta, mat.cosPower) * (mat.cosPower + 1.0) * (0.5 * INV_PI);
 
-    return (color, nextDir, cosTheta, pdf, false);
+    return (color, nextDir, pdf, false);
 
   end SampleAndEvalBxDF;
 
   function EvalBxDF(mat : MaterialPhong; l,v,n : float3) return float3 is
-    r : float3;
+    r        : float3;
     cosTheta : float;
   begin
     r        := reflect((-1.0)*v, n);
@@ -369,10 +313,14 @@ package body Materials is
   end EvalBxDF;
 
 
-
-
-
-
+  function EvalPDF(mat : MaterialPhong; l,v,n : float3) return float is
+    r        : float3;
+    cosTheta : float;
+  begin
+    r        := reflect((-1.0)*v, n);
+    cosTheta := dot(l,r);
+    return pow(cosTheta, mat.cosPower) * (mat.cosPower + 1.0) * (0.5 * INV_PI);
+  end EvalPDF;
 
 
 

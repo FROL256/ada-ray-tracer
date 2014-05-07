@@ -154,9 +154,9 @@ package body Ray_Tracer is
     -- select integrator
     --
 
-    tracer := new SimplePathTracerLegacy;
+    --tracer := new SimplePathTracer;
     --tracer := new PathTracerWithShadowRays;
-    --tracer := new PathTracerMIS;
+    tracer := new PathTracerMIS;
     --tracer := new MLTCopyImage;
     --tracer := new MLTSimple;
     --tracer := new MLTKelmenSimple;
@@ -240,70 +240,6 @@ package body Ray_Tracer is
   procedure InitCornellBoxScene is
   begin
 
-    -- init materials
-    --
-    for i in 0 .. g_scn.materialsLegacy'Last loop
-      if g_scn.materialsLegacy(i) = null then
-        g_scn.materialsLegacy(i) := new LegacyMaterial;
-      end if;
-    end loop;
-
-    -- glass material
-    --
-    g_scn.materialsLegacy(0).kd           := (0.0, 0.0, 0.0);
-    g_scn.materialsLegacy(0).reflection   := (1.0,1.0,1.0);
-    g_scn.materialsLegacy(0).roughness    := 0.25;
-    g_scn.materialsLegacy(0).transparency := (1.0,1.0,1.0);
-    g_scn.materialsLegacy(0).ior          := 1.75;
-    g_scn.materialsLegacy(0).fresnel      := true;
-
-
-    -- floor material
-    --
-    g_scn.materialsLegacy(1).ka := (0.0, 0.0, 0.0);
-    g_scn.materialsLegacy(1).kd := (0.5, 0.5, 0.5);
-
-    -- Left wall
-    --
-    g_scn.materialsLegacy(2).ka := (0.0, 0.0, 0.0);
-    g_scn.materialsLegacy(2).kd := (0.25, 0.5, 0.0); --0.25 0.65 0.0
-
-    -- Right wall
-    --
-    g_scn.materialsLegacy(3).ka := (0.0, 0.0, 0.0);
-    g_scn.materialsLegacy(3).kd := (0.5, 0.0, 0.0);
-
-    -- Light material
-    --
-    g_scn.materialsLegacy(4).kd     := (0.0, 0.0, 0.0);
-    g_scn.materialsLegacy(4).ka     := (20.0, 20.0, 20.0);
-    g_light.intensity         := g_scn.materialsLegacy(4).ka;
-    g_light.surfaceArea       := (g_light.boxMax.x - g_light.boxMin.x)*(g_light.boxMax.z - g_light.boxMin.z);
-
-    -- Mirror
-    --
-    g_scn.materialsLegacy(5).kd           := (0.0, 0.0, 0.0);
-    g_scn.materialsLegacy(5).ks           := (0.5,0.5,0.5);
-    g_scn.materialsLegacy(5).reflection   := (0.5,0.5,0.5);
-    g_scn.materialsLegacy(5).roughness    := 0.25;
-    g_scn.materialsLegacy(5).transparency := (0.0,0.0,0.0);
-    g_scn.materialsLegacy(5).ior          := 1.5;
-
-    -- Glass 2
-    --
-    g_scn.materialsLegacy(6).kd := (0.0, 0.0, 0.0);
-    g_scn.materialsLegacy(6).ks := (0.0, 0.0, 0.0);
-    g_scn.materialsLegacy(6).reflection := (0.0,0.0,0.0);
-    g_scn.materialsLegacy(6).roughness  := 0.5;
-    g_scn.materialsLegacy(6).transparency := (0.85,0.85,0.85);
-    g_scn.materialsLegacy(6).ior := 1.75;
-
-    -- blue
-    --
-    g_scn.materialsLegacy(7).ka := (0.0, 0.0, 0.0);
-    g_scn.materialsLegacy(7).kd := (0.0, 0.0, 0.5);
-
-
     -- init spheres geometry
     --
     if g_scn.spheres /= null then
@@ -342,13 +278,13 @@ package body Ray_Tracer is
       smatPhong.cosPower   := 80.0;
 
       smatGlass.reflection   := (0.95, 0.95, 0.95);
-      smatGlass.transparency := (0.75, 0.75, 0.75);
+      smatGlass.transparency := (0.85, 0.85, 0.85);
       smatGlass.ior          := 1.75;
 
       g_scn.materials(0) := MaterialRef(smatGlass);
       g_scn.materials(1) := MaterialRef(dmatWhite);
-      g_scn.materials(2) := MaterialRef(dmatRed);
-      g_scn.materials(3) := MaterialRef(dmatGreen);
+      g_scn.materials(2) := MaterialRef(dmatGreen);
+      g_scn.materials(3) := MaterialRef(dmatRed);
       g_scn.materials(4) := MaterialRef(lmatRef);
       g_scn.materials(5) := MaterialRef(smatMirr);
       g_scn.materials(8) := MaterialRef(smatPhong);
@@ -364,11 +300,9 @@ package body Ray_Tracer is
 
     g_scn.spheres(0).pos := (-1.5,1.0,1.5);
     g_scn.spheres(0).r   := 1.0;
-    g_scn.spheres(0).matLeg := g_scn.materialsLegacy(5); -- 5, 3
 
     g_scn.spheres(1).pos := (1.4,1.0,3.0);
     g_scn.spheres(1).r   := 1.0;
-    g_scn.spheres(1).matLeg := g_scn.materialsLegacy(0); -- 0, 1
 
     g_scn.lights(0).color := (2.5, 2.5, 2.5);
     g_scn.lights(0).pos   := (0.0, 4.97, 2.25);

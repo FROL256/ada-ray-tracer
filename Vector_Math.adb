@@ -12,7 +12,7 @@ package body Vector_Math is
   use Float_Functions;
 
   function safe_tan(x : float) return float is
-     Half_Pi: constant float :=  Ada.Numerics.Pi*0.5;
+     Half_Pi: constant float := Ada.Numerics.Pi*0.5;
   begin
     if abs(x) = Half_Pi then
       return float'Last;
@@ -25,6 +25,15 @@ package body Vector_Math is
   begin
     return a ** b;
   end pow;
+
+  function sign(x : float) return float is
+  begin
+    if x >= 0.0 then
+      return 1.0;
+    else
+      return -1.0;
+    end if;
+  end sign;
 
   function normalize (a : float3) return float3 is
     l_inv : float;

@@ -10,70 +10,32 @@ use Ada.Text_IO;
 
 package Materials is
 
-  type LegacyMaterial is record
-    ka : float3 := (0.0, 0.0, 0.0);
-    kd : float3 := (0.0, 0.0, 0.0);
-    ks : float3 := (0.0, 0.0, 0.0);
-    roughness    : float  := 0.5;             -- for Cook-Torrance model
-    reflection   : float3 := (0.0, 0.0, 0.0); -- use separate (from ks) reflection
-    transparency : float3 := (0.0, 0.0, 0.0);
-    ior          : float  := 1.0;
-    fresnel      : Boolean := false;
-  end record;
-
-
-  function EvalCookTorranceBRDF(mat: in LegacyMaterial; l,v,normal: float3) return float3;
-
-  function TotalInternalReflection(ior: in float; rayDir, normal : float3) return boolean;
-  procedure refract(ior: in float; rayDir, normal : in float3; wt : out float3);
-
-  function GetPlaneTextureColor (x, y : float) return float3;
-
-  -----------------------------------------------------------------------------------------------------------------------------------
-  -----------------------------------------------------------------------------------------------------------------------------------
-  type MaterialLegacyRef is access all LegacyMaterial;
-  procedure delete is new Ada.Unchecked_Deallocation(Object => LegacyMaterial, Name => MaterialLegacyRef);
-
-  procedure ApplyFresnel(mat: in MaterialLegacyRef; cosTheta : float; ks : in out float3; kt : in out float3);
-
-  function IsLight(mat : MaterialLegacyRef) return Boolean;
-  function Emittance(mat : MaterialLegacyRef) return float3;
-
-
-  -----------------------------------------------------------------------------------------------------------------------------------
-  -----------------------------------------------------------------------------------------------------------------------------------
-  -----------------------------------------------------------------------------------------------------------------------------------
-
-
-
   -----------------------------
   ---- Moderm Material API ----
   -----------------------------
   type MatSample is record -- sample materials with Monte-Carlo
     color        : float3  := (0.0, 0.0, 0.0);
     direction    : float3  := (0.0, 0.0, 0.0);
-    cosTheta     : float   := 0.0;
     pdf          : float   := 1.0;
     pureSpecular : boolean := false;
   end record;
+
+  StartSample : constant MatSample := ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), 1.0, true); -- for rays starting their path from screen of other places
 
   ----------------------------
   ---- Base Material Type ----
   ----------------------------
   type Material is abstract tagged null record;
-
+  type MaterialRef is access all Material'Class;
 
   function IsLight(mat : Material) return Boolean is abstract;                     				    -- indicate the materias is light
   function Emittance(mat : Material) return float3 is abstract;                    				    -- get light intensity
   function SampleAndEvalBxDF(mat : Material; gen : RandRef; ray_dir, normal : float3) return MatSample is abstract; -- simultaniously create brdf/btdf sample and eval brdf/btdf value
   function EvalBxDF(mat : Material; l,v,n : float3) return float3 is abstract;     				    -- eval brdf/btdf value for direct light sampling
-
+  function EvalPDF(mat : Material; l,v,n : float3) return float is abstract;                                        -- eval pdf for MIS with direct light sampling
 
   -----------------------------------------------------------------------------------------------------------------------------------
   -----------------------------------------------------------------------------------------------------------------------------------
-
-  type MaterialRef is access all Material;
-  --procedure delete is new Ada.Unchecked_Deallocation(Object => Material, Name => MaterialRef);
 
   ------------------------------------
   ---- Simple Area Light Material ----
@@ -87,6 +49,7 @@ package Materials is
   function Emittance(mat : MaterialAreaLight) return float3;
   function SampleAndEvalBxDF(mat : MaterialAreaLight; gen : RandRef; ray_dir, normal : float3) return MatSample;
   function EvalBxDF(mat : MaterialAreaLight; l,v,n : float3) return float3;
+  function EvalPDF(mat : MaterialAreaLight; l,v,n : float3) return float;
 
   type MaterialAreaLightRef is access MaterialAreaLight;
 
@@ -101,6 +64,7 @@ package Materials is
   function Emittance(mat : MaterialLambert) return float3;
   function SampleAndEvalBxDF(mat : MaterialLambert; gen : RandRef; ray_dir, normal : float3) return MatSample;
   function EvalBxDF(mat : MaterialLambert; l,v,n : float3) return float3;
+  function EvalPDF(mat : MaterialLambert; l,v,n : float3) return float;
 
   type MaterialLambertRef is access MaterialLambert;
 
@@ -115,6 +79,7 @@ package Materials is
   function Emittance(mat : MaterialMirror) return float3;
   function SampleAndEvalBxDF(mat : MaterialMirror; gen : RandRef; ray_dir, normal : float3) return MatSample;
   function EvalBxDF(mat : MaterialMirror; l,v,n : float3) return float3;
+  function EvalPDF(mat : MaterialMirror; l,v,n : float3) return float;
 
   type MaterialMirrorRef is access MaterialMirror;
 
@@ -131,6 +96,7 @@ package Materials is
   function Emittance(mat : MaterialFresnelDielectric) return float3;
   function SampleAndEvalBxDF(mat : MaterialFresnelDielectric; gen : RandRef; ray_dir, normal : float3) return MatSample;
   function EvalBxDF(mat : MaterialFresnelDielectric; l,v,n : float3) return float3;
+  function EvalPDF(mat : MaterialFresnelDielectric; l,v,n : float3) return float;
 
   procedure ApplyFresnel(mat: in MaterialFresnelDielectric; cosTheta : float; ks : in out float3; kt : in out float3);
 
@@ -148,6 +114,7 @@ package Materials is
   function Emittance(mat : MaterialPhong) return float3;
   function SampleAndEvalBxDF(mat : MaterialPhong; gen : RandRef; ray_dir, normal : float3) return MatSample;
   function EvalBxDF(mat : MaterialPhong; l,v,n : float3) return float3;
+  function EvalPDF(mat : MaterialPhong; l,v,n : float3) return float;
 
   type MaterialPhongRef is access MaterialPhong;
 

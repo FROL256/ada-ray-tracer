@@ -11,10 +11,13 @@ package Vector_Math is
   package Float_Math is new Generic_Vector_Math (float);
 
   function safe_tan(x : float) return float;
+  function sign(x : float) return float;
+  function pow(a,b : float) return float;
+
   infinity : constant float := float'Last;
 
-  M_PI   : constant float := 3.14159265358979323846;
-  INV_PI : constant float := 0.31830988618379067154;
+  M_PI   : constant float := Ada.Numerics.Pi;
+  INV_PI : constant float := 1.0/Ada.Numerics.Pi;
 
   type float2 is new Float_Math.vector2;
   type float3 is new Float_Math.vector3;
@@ -36,8 +39,6 @@ package Vector_Math is
   function max(a, b : Float_Math.vector3) return Float_Math.vector3 renames Float_Math.max;
   function clamp(x  : Float_Math.vector3; a,b : float) return Float_Math.vector3 renames Float_Math.clamp;
   function clamp(x,a,b : Float_Math.vector3) return Float_Math.vector3 renames Float_Math.clamp;
-
-  function pow(a,b : float) return float;
 
   function RotationMatrix(angle : float; a_v : float3) return float4x4;
   function LookAtMatrix(eye, center, up : float3) return float4x4;

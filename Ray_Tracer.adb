@@ -162,13 +162,13 @@ package body Ray_Tracer is
     --tracer := new MLTKelmenSimple;
 
     tracer.gen := mygen; -- default simple generator
-    tracer.Init;
+    tracer.Init;         -- Ada 2005 style virtual function call
 
     while true loop
 
       accept Resume;
 
-      tracer.DoPass(colBuff);
+      tracer.DoPass(colBuff); -- Ada 2005 style virtual function call
 
       accept Finish (accBuff : AccumBuffRef; spp : IntRef) do
 
@@ -240,6 +240,8 @@ package body Ray_Tracer is
   procedure InitCornellBoxScene is
   begin
 
+    g_light.surfaceArea := (g_light.boxMax.x - g_light.boxMin.x)*(g_light.boxMax.z - g_light.boxMin.z);
+
     -- init spheres geometry
     --
     if g_scn.spheres /= null then
@@ -250,49 +252,35 @@ package body Ray_Tracer is
 
 
     -- new api materials
-    -- this should cause memry leak, but i'm too lazy to implement memory management for this case
+    -- this should cause memry leak, but i'm too lazy to implement memory management for this case (need to implement abtract delete function)
     --
     declare
-      lmatRef   : MaterialAreaLightRef := new MaterialAreaLight;
+      lmatRef   : MaterialRef := new MaterialAreaLight'(emission => g_light.intensity);
 
-      dmatWhite : MaterialLambertRef   := new MaterialLambert;
-      dmatRed   : MaterialLambertRef   := new MaterialLambert;
-      dmatGreen : MaterialLambertRef   := new MaterialLambert;
+      dmatWhite : MaterialRef := new MaterialLambert'(kd => (0.5, 0.5, 0.5));
+      dmatRed   : MaterialRef := new MaterialLambert'(kd => (0.5, 0.0, 0.0));
+      dmatGreen : MaterialRef := new MaterialLambert'(kd => (0.25, 0.5, 0.0));
 
-      smatMirr  : MaterialMirrorRef    := new MaterialMirror;
-      smatPhong : MaterialPhongRef     := new MaterialPhong;
-      smatGlass : MaterialFresnelDielectricRef := new MaterialFresnelDielectric;
+      smatMirr  : MaterialRef := new MaterialMirror'(reflection => (0.75, 0.75, 0.75));
+      smatPhong : MaterialRef := new MaterialPhong' (reflection => (0.75, 0.75, 0.75), cosPower => 80.0);
 
+      smatGlass : MaterialRef := new MaterialFresnelDielectric'(reflection   => (0.75, 0.75, 0.75),
+                                                                transparency => (0.85, 0.85, 0.85),
+                                                                ior          =>  1.75);
     begin
 
-      lmatRef.emission    := (20.0, 20.0, 20.0);
-      g_light.intensity   := lmatRef.emission;
-      g_light.surfaceArea := (g_light.boxMax.x - g_light.boxMin.x)*(g_light.boxMax.z - g_light.boxMin.z);
+      g_scn.materials(0) := smatGlass;
+      g_scn.materials(1) := dmatWhite;
+      g_scn.materials(2) := dmatGreen;
+      g_scn.materials(3) := dmatRed;
+      g_scn.materials(4) := lmatRef;
+      g_scn.materials(5) := smatMirr;
+      g_scn.materials(8) := smatPhong;
+      g_scn.materials(9) := dmatWhite;
+      g_scn.materials(10):= dmatWhite;
 
-      dmatWhite.kd := (0.5, 0.5, 0.5);
-      dmatRed.kd   := (0.5, 0.0, 0.0);
-      dmatGreen.kd := (0.25, 0.5, 0.0);
-
-      smatMirr.reflection  := (0.75, 0.75, 0.75);
-      smatPhong.reflection := (0.75, 0.75, 0.75);
-      smatPhong.cosPower   := 80.0;
-
-      smatGlass.reflection   := (0.95, 0.95, 0.95);
-      smatGlass.transparency := (0.85, 0.85, 0.85);
-      smatGlass.ior          := 1.75;
-
-      g_scn.materials(0) := MaterialRef(smatGlass);
-      g_scn.materials(1) := MaterialRef(dmatWhite);
-      g_scn.materials(2) := MaterialRef(dmatGreen);
-      g_scn.materials(3) := MaterialRef(dmatRed);
-      g_scn.materials(4) := MaterialRef(lmatRef);
-      g_scn.materials(5) := MaterialRef(smatMirr);
-      g_scn.materials(8) := MaterialRef(smatPhong);
-      g_scn.materials(9) := MaterialRef(dmatWhite);
-      g_scn.materials(10):= MaterialRef(dmatWhite);
-
-      g_scn.spheres(0).mat := MaterialRef(smatMirr);
-      g_scn.spheres(1).mat := MaterialRef(smatGlass);
+      g_scn.spheres(0).mat := smatPhong; -- smatMirr
+      g_scn.spheres(1).mat := smatGlass;
 
     end;
 
@@ -309,7 +297,7 @@ package body Ray_Tracer is
 
     -- setup camera
     --
-    g_cam.pos    := (0.0, 2.5, 12.0);
+    g_cam.pos    := (0.0, 2.55, 12.5);
     g_cam.lookAt := (0.0, 0.0, 0.0);
     g_cam.up     := (0.0, 1.0, 0.0);
     g_cam.matrix := IdentityMatrix;

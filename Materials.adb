@@ -289,14 +289,14 @@ package body Materials is
   function SampleAndEvalBxDF(mat : MaterialPhong; gen : RandRef; ray_dir, normal : float3) return MatSample is
     pdf, cosTheta : float;
     nextDir, r    : float3;
-    color : float3;
+    color         : float3;
   begin
 
     r        := reflect(ray_dir, normal);
     nextDir  := RandomCosineVectorOf(gen, r, normal, mat.cosPower);
 
-    cosTheta := dot(nextDir, r);
-    color    := mat.reflection*(mat.cosPower + 2.0)*0.5*INV_PI*pow(clamp(cosTheta, 0.0, M_PI*0.499995), mat.cosPower);
+    cosTheta := clamp(dot(nextDir, r), 0.0, M_PI*0.499995);
+    color    := mat.reflection*(mat.cosPower + 2.0)*0.5*INV_PI*pow(cosTheta, mat.cosPower);
     pdf      := pow(cosTheta, mat.cosPower) * (mat.cosPower + 1.0) * (0.5 * INV_PI);
 
     return (color, nextDir, pdf, false);
@@ -308,18 +308,20 @@ package body Materials is
     cosTheta : float;
   begin
     r        := reflect((-1.0)*v, n);
-    cosTheta := dot(l, r);
-    return mat.reflection*(mat.cosPower + 2.0)*0.5*INV_PI*pow(clamp(cosTheta, 0.0, M_PI*0.499995), mat.cosPower);
+    cosTheta := clamp(dot(l, r), 0.0, M_PI*0.499995);
+    return mat.reflection*(mat.cosPower + 2.0)*0.5*INV_PI*pow(cosTheta, mat.cosPower);
   end EvalBxDF;
 
 
   function EvalPDF(mat : MaterialPhong; l,v,n : float3) return float is
     r        : float3;
     cosTheta : float;
+    pdf      : float;
   begin
     r        := reflect((-1.0)*v, n);
-    cosTheta := dot(l,r);
-    return pow(cosTheta, mat.cosPower) * (mat.cosPower + 1.0) * (0.5 * INV_PI);
+    cosTheta := clamp(dot(l, r), 0.0, M_PI*0.499995);
+    pdf      := pow(cosTheta, mat.cosPower) * (mat.cosPower + 1.0) * (0.5 * INV_PI);
+    return pdf;
   end EvalPDF;
 
 

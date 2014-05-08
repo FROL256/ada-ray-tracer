@@ -26,7 +26,7 @@ package Materials is
   ---- Base Material Type ----
   ----------------------------
   type Material is abstract tagged null record;
-  type MaterialRef is access all Material'Class;
+  type MaterialRef is access Material'Class;
 
   function IsLight(mat : Material) return Boolean is abstract;                     				    -- indicate the materias is light
   function Emittance(mat : Material) return float3 is abstract;                    				    -- get light intensity

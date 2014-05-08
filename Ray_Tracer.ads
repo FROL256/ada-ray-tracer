@@ -16,7 +16,7 @@ package Ray_Tracer is
   width  : Positive := 800;
   height : Positive := 600;
 
-  threads_num : Positive := 4;
+  threads_num : Positive := 8;
 
   compute_shadows  : boolean  := true;
   anti_aliasing_on : boolean  := true;
@@ -24,8 +24,11 @@ package Ray_Tracer is
 
   background_color : float3   := (0.0,0.0,0.0);
 
-  g_gamma : float := 2.0;
-  epsilon : float := 1.0e-5;
+  epsilon    : constant float := 1.0e-5;  -- small value for geometry offsets
+  epsilonDiv : constant float := 1.0e-20; -- small value for bsdf/pdf divisions
+
+  g_gamma    : float := 2.0;
+
   g_mltMutationsPerPixel : integer := 64;
 
 
@@ -88,6 +91,7 @@ private
   type FlatLight is record
     boxMin    : float3;
     boxMax    : float3;
+    normal    : float3;
     intensity : float3;
     surfaceArea : float;
   end record;
@@ -206,9 +210,10 @@ private
 
   g_light : FlatLight :=
   (
-    boxMin    => (-0.75, 4.98, 1.25),
-    boxMax    => ( 0.75, 4.98, 3.25),
-    intensity => (0.5, 0.5, 0.5),
+    boxMin      => (-0.75, 4.98, 1.25),
+    boxMax      => ( 0.75, 4.98, 3.25),
+    normal      => (0.0, -1.0, 0.0),
+    intensity   => ( 15.0, 15.0, 15.0),
     surfaceArea => 1.0
   );
 

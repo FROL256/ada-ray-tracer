@@ -89,7 +89,7 @@ package body Ray_Tracer.Integrators is
     end if;
 
     if IsLight(h.mat.all) then
-      if dot(r.direction, (0.0,1.0,0.0)) < 0.0 then
+      if dot((-1.0)*r.direction, g_light.normal) < 0.0 then
         return (0.0, 0.0, 0.0);
       else
         return Emittance(h.mat.all);
@@ -103,7 +103,7 @@ package body Ray_Tracer.Integrators is
     --end if;
 
     matSam  := SampleAndEvalBxDF(h.mat.all, self.gen, r.direction, h.normal);
-    bxdfVal := matSam.color * (1.0/max(matSam.pdf, 1.0e-10));
+    bxdfVal := matSam.color * (1.0/max(matSam.pdf, epsilonDiv));
 
     nextRay.origin    := r.origin + r.direction*h.t;
     nextRay.direction := matSam.direction;
@@ -131,7 +131,7 @@ package body Ray_Tracer.Integrators is
 
   function PdfAtoW(aPdfA : in float; aDist : in float; aCosThere : in float) return float is
   begin
-    return aPdfA*aDist*aDist/max(aCosThere, 1.0e-28);
+    return aPdfA*aDist*aDist/max(aCosThere, epsilonDiv);
   end PdfAtoW;
 
 
@@ -175,12 +175,12 @@ package body Ray_Tracer.Integrators is
 
       cosTheta : float  := max(dot(sdir, (0.0,1.0,0.0)), 0.0);
       lgtPdf   : float  := PdfAtoW(1.0/g_light.surfaceArea, d, cosTheta); -- convert pdf to spherical coordinate system
-      bxdfVal  : float3 := EvalBxDF(h.mat.all, l => sdir, v => r.direction, n => h.normal);
+      bxdfVal  : float3 := EvalBxDF(h.mat.all, l => sdir, v => (-1.0)*r.direction, n => h.normal);
 
     begin
 
       if not ComputeShadow(hpos, lpos).in_shadow then
-        explicitColor := g_light.intensity*bxdfVal*(1.0/max(lgtPdf, 1.0e-10));
+        explicitColor := g_light.intensity*bxdfVal*(1.0/max(lgtPdf, epsilonDiv));
       end if;
 
     end;
@@ -189,7 +189,7 @@ package body Ray_Tracer.Integrators is
     -- pick up next ray
     --
     matSam  := SampleAndEvalBxDF(h.mat.all, self.gen, r.direction, h.normal);
-    bxdfVal := matSam.color * (1.0/max(matSam.pdf, 1.0e-10));
+    bxdfVal := matSam.color * (1.0/max(matSam.pdf, epsilonDiv));
 
     nextRay.origin    := r.origin + r.direction*h.t;
     nextRay.direction := matSam.direction;
@@ -227,7 +227,7 @@ package body Ray_Tracer.Integrators is
 
     if IsLight(h.mat.all) then
 
-      if dot(r.direction, (0.0,1.0,0.0)) < 0.0 then
+      if dot((-1.0)*r.direction, g_light.normal) < 0.0 then
         return (0.0, 0.0, 0.0);
       else
 
@@ -265,16 +265,15 @@ package body Ray_Tracer.Integrators is
 
       cosTheta : float  := max(dot(sdir, (0.0,1.0,0.0)), 0.0);
       lgtPdf   : float  := PdfAtoW(1.0/g_light.surfaceArea, dist, cosTheta); -- convert pdf to spherical coordinate system
-
-      bsdfPdf  : float  := EvalPDF (h.mat.all, l => sdir, v => r.direction, n => h.normal);
-      bxdfVal  : float3 := EvalBxDF(h.mat.all, l => sdir, v => r.direction, n => h.normal);
+      bsdfPdf  : float  := EvalPDF (h.mat.all, l => sdir, v => (-1.0)*r.direction, n => h.normal);
+      bxdfVal  : float3 := EvalBxDF(h.mat.all, l => sdir, v => (-1.0)*r.direction, n => h.normal);
 
       misWeight : float := lgtPdf*lgtPdf/(lgtPdf*lgtPdf + bsdfPdf*bsdfPdf);
 
     begin
 
       if not ComputeShadow(hpos, lpos).in_shadow then
-        explicitColor := g_light.intensity*bxdfVal*(1.0/max(lgtPdf, 1.0e-10))*misWeight;
+        explicitColor := g_light.intensity*bxdfVal*(1.0/max(lgtPdf, epsilonDiv))*misWeight;
       end if;
 
     end;
@@ -282,7 +281,7 @@ package body Ray_Tracer.Integrators is
     -- pick up next ray
     --
     matSam  := SampleAndEvalBxDF(h.mat.all, self.gen, r.direction, h.normal);
-    bxdfVal := matSam.color * (1.0/max(matSam.pdf, 1.0e-10));
+    bxdfVal := matSam.color * (1.0/max(matSam.pdf, epsilonDiv));
 
     nextRay.origin    := r.origin + r.direction*h.t;
     nextRay.direction := matSam.direction;
@@ -658,19 +657,19 @@ package body Ray_Tracer.Integrators is
   -- used, the value of the coordinate was set at time modify. Then
   -- the coordinate is perturbed by time modify times.
   --
-   procedure PrimarySample(gen : in out KMLT_Generator; i : in integer; time : in integer; res : out float) is
+  procedure PrimarySample(gen : in out KMLT_Generator; i : in integer; time : in integer; res : out float) is
   begin
 
     -- copy-paste from Mitsuba
     --
 
-     --sss := ValuesSize(gen);
+    --sss := ValuesSize(gen);
 
-     --while i >= sss loop
-     --    gen.values(sss) := gen.rnd_uniform_simple(0.0, 1.0);
-     --    gen.modify(sss) := 0;
---	sss := sss + 1;
-  --    end loop;
+    --while i >= sss loop
+    --    gen.values(sss) := gen.rnd_uniform_simple(0.0, 1.0);
+    --    gen.modify(sss) := 0;
+    --	sss := sss + 1;
+    --    end loop;
 
     gen.values(i) := gen.rnd_uniform_simple(0.0, 1.0);
 

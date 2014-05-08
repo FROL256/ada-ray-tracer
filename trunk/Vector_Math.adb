@@ -21,9 +21,29 @@ package body Vector_Math is
     end if;
   end;
 
-  function pow(a,b : float) return float is
+  function pow(Left, Right : float) return float is
   begin
-    return a ** b;
+
+    if Left = 0.0 and then Right = 0.0 then
+      raise Argument_Error;
+    elsif Left < 0.0 then
+      raise Argument_Error;
+    elsif Right = 0.0 then
+      return 1.0;
+    elsif Left = 0.0 then
+      if Right < 0.0 then
+        raise Constraint_Error;
+       else
+        return 0.0;
+      end if;
+    elsif Left = 1.0 then
+      return 1.0;
+    elsif Right = 1.0 then
+      return Left;
+    else
+      return Left ** Right;
+    end if;
+
   end pow;
 
   function sign(x : float) return float is
@@ -189,7 +209,32 @@ package body Vector_Math is
   end ResetAllModifyCounters;
 
 
+  function GetPerpendicular(a_vec : float3) return float3 is
+    leastPerpendicular : float3;
+    bestProjection     : float;
+    xProjection        : float;
+    yProjection        : float;
+    zProjection        : float;
+  begin
 
+    xProjection := abs(a_vec.x);
+    yProjection := abs(a_vec.y);
+    zProjection := abs(a_vec.z);
+
+    if (xProjection <= yProjection + 1.0e-5) and (xProjection <= zProjection + 1.0e-5) then
+      leastPerpendicular := (1.0, 0.0, 0.0);
+      bestProjection     := xProjection;
+    elsif  (yProjection < xProjection + 1.0e-5) and (yProjection <= zProjection + 1.0e-5) then
+      leastPerpendicular := (0.0, 1.0, 0.0);
+      bestProjection     := yProjection;
+    else
+      leastPerpendicular := (0.0, 0.0, 1.0);
+      bestProjection     := zProjection;
+    end if;
+
+    return normalize(cross(a_vec, leastPerpendicular));
+    --return normalize(cross(direction, (1.04,2.93,-0.6234)));
+  end GetPerpendicular;
 
   function MapSampleToCosineDist(r1,r2 : float; direction, normal : float3; power : float) return float3 is
    e,sin_phi,cos_phi: float;
@@ -208,21 +253,35 @@ package body Vector_Math is
     deviation := (sin_theta*cos_phi, sin_theta*sin_phi, cos_theta);
 
     ny := direction;
-    nx := normalize(cross(ny, (1.04,2.93,-0.6234)));
+    nx := GetPerpendicular(ny);
     nz := normalize(cross(nx, ny));
 
     tmp := ny; ny := nz; nz := tmp; -- swap(ny,nz);  // depends on the coordinate system
 
     res := nx*deviation.x + ny*deviation.y + nz*deviation.z;
 
-    if dot(direction, normal) > 0.0 then
+    if dot(direction, normal) >= 0.0 then
       invSign := 1.0;
     else
       invSign := -1.0;
     end if;
 
-    if invSign*dot(res, normal) < 0.0 then
-      res := (-1.0)*nx*deviation.x + ny*deviation.y - nz*deviation.z;
+    if invSign*dot(res, normal) < 0.0 then -- reflect vector with surface normal
+
+      nx := normalize(cross(normal, direction));
+      nz := normalize(cross(nx, ny));
+
+      if dot(nz,res) < 0.0 then
+        nz := (-1.0)*nz;
+      end if;
+
+      res := reflect((-1.0)*res, nz);
+
+      if dot(res, normal) < 0.0 then -- for debug only
+        res := direction;
+        --raise Numeric_Error;
+      end if;
+
     end if;
 
     return res;

@@ -12,7 +12,7 @@ package Vector_Math is
 
   function safe_tan(x : float) return float;
   function sign(x : float) return float;
-  function pow(a,b : float) return float;
+  function pow(Left, Right : float) return float;
 
   infinity : constant float := float'Last;
 

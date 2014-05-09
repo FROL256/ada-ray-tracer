@@ -123,6 +123,7 @@ package Vector_Math is
   function rnd_uniform_simple(gen : RandomGenerator; l,h : float) return float;
 
   function MapSampleToCosineDist(r1,r2 : float; direction, normal : float3; power : float) return float3;
+  function MapSampleToCosineDistFixed(r1,r2 : float; direction, normal : float3; power : float) return float3;
 
   type MLTSample is record
     contrib : float3  :=(0.0, 0.0, 0.0);

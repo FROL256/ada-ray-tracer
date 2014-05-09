@@ -288,6 +288,66 @@ package body Vector_Math is
 
   end MapSampleToCosineDist;
 
+
+  function MapSampleToCosineDistFixed(r1,r2 : float; direction, normal : float3; power : float) return float3 is
+   --e,sin_phi,cos_phi: float;
+   --sin_theta,cos_theta : float;
+   deviation,nx,ny,nz,tmp,res : float3;
+   invSign : float;
+   h : float;
+  begin
+
+    h := sqrt(1.0 - r1 ** (2.0/(power + 1.0)));
+
+    deviation.x := h*cos(2.0*M_PI*r2);
+    deviation.y := h*sin(2.0*M_PI*r2);
+    deviation.z := r1 ** (1.0/(power + 1.0));
+
+    --e := power;
+    --sin_phi := sin(2.0*r1*M_PI);
+    --cos_phi := cos(2.0*r1*M_PI);
+
+    --cos_theta := (1.0-r2) ** (1.0/(e+1.0));
+    --sin_theta := sqrt(1.0-cos_theta*cos_theta);
+
+    --deviation := (sin_theta*cos_phi, sin_theta*sin_phi, cos_theta);
+
+    ny := direction;
+    nx := GetPerpendicular(ny);
+    nz := normalize(cross(nx, ny));
+
+    tmp := ny; ny := nz; nz := tmp; -- swap(ny,nz);  // depends on the coordinate system
+
+    res := nx*deviation.x + ny*deviation.y + nz*deviation.z;
+
+    if dot(direction, normal) >= 0.0 then
+      invSign := 1.0;
+    else
+      invSign := -1.0;
+    end if;
+
+    if invSign*dot(res, normal) < 0.0 then -- reflect vector with surface normal
+
+      nx := normalize(cross(normal, direction));
+      nz := normalize(cross(nx, ny));
+
+      if dot(nz,res) < 0.0 then
+        nz := (-1.0)*nz;
+      end if;
+
+      res := reflect((-1.0)*res, nz);
+
+      if dot(res, normal) < 0.0 then -- for debug only
+        res := direction;
+        --raise Numeric_Error;
+      end if;
+
+    end if;
+
+    return res;
+
+  end MapSampleToCosineDistFixed;
+
   function RandomCosineVectorOf(gen : RandRef; norm : float3) return float3 is
     r1 : float := gen.rnd_uniform(0.0, 1.0);
     r2 : float := gen.rnd_uniform(0.0, 1.0);
@@ -299,7 +359,7 @@ package body Vector_Math is
     r1 : float := gen.rnd_uniform(0.0, 1.0);
     r2 : float := gen.rnd_uniform(0.0, 1.0);
   begin
-    return MapSampleToCosineDist(r1,r2,refl,norm,cosPower);
+    return MapSampleToCosineDistFixed(r1,r2,refl,norm,cosPower);
   end RandomCosineVectorOf;
 
 

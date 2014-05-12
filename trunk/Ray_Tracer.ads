@@ -120,7 +120,7 @@ private
     t      : float   := infinity;
     normal : float3  := (0.0, 0.0, 0.0);
     mat    : MaterialRef  := null;
-    x,y    : float        := 0.0;
+    tx,ty  : float        := 0.0;
     prim_index : integer  := -1;
 
   end record;

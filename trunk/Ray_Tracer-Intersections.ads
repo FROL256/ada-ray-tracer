@@ -21,8 +21,8 @@ private
 	      	      is_hit     => false,
 	      	      t          => infinity,
                       mat        => null,
-	              x          => 0.0,
-                      y          => 0.0,
+	              tx         => 0.0,
+                      ty         => 0.0,
                       normal     => (0.0, 1.0, 0.0)
 	             );
 

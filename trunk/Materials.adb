@@ -99,6 +99,33 @@ package body Materials is
   ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+  -- simplify dispatching call syntax
+  --
+  function IsLight(mat : MaterialRef) return Boolean is
+  begin
+    return IsLight(mat.all);
+  end IsLight;
+
+  function Emittance(mat : MaterialRef) return float3 is
+  begin
+    return Emittance(mat.all);
+  end Emittance;
+
+
+  function SampleAndEvalBxDF(mat : MaterialRef; gen : RandRef; ray_dir, normal : float3; tx,ty : float) return MatSample is
+  begin
+    return SampleAndEvalBxDF(mat.all, gen, ray_dir, normal, tx, ty);
+  end  SampleAndEvalBxDF;
+
+  function EvalBxDF(mat : MaterialRef; l,v,n : float3; tx,ty : float) return float3 is
+  begin
+    return EvalBxDF(mat.all, l, v, n, tx, ty);
+  end EvalBxDF;
+
+  function EvalPDF(mat : MaterialRef; l,v,n : float3; tx,ty : float) return float is
+  begin
+    return EvalPDF(mat.all, l, v, n, tx, ty);
+  end EvalPDF;
 
 
   ----------------------------------
@@ -115,17 +142,17 @@ package body Materials is
     return mat.emission;
   end Emittance;
 
-  function SampleAndEvalBxDF(mat : MaterialAreaLight; gen : RandRef; ray_dir, normal : float3) return MatSample is
+  function SampleAndEvalBxDF(mat : MaterialAreaLight; gen : RandRef; ray_dir, normal : float3; tx,ty : float) return MatSample is
   begin
     return ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), 1.0, false);
   end SampleAndEvalBxDF;
 
-  function EvalBxDF(mat : MaterialAreaLight; l,v,n : float3) return float3 is
+  function EvalBxDF(mat : MaterialAreaLight; l,v,n : float3; tx,ty : float) return float3 is
   begin
     return (0.0, 0.0, 0.0);
   end EvalBxDF;
 
-  function EvalPDF(mat : MaterialAreaLight; l,v,n : float3) return float is
+  function EvalPDF(mat : MaterialAreaLight; l,v,n : float3; tx,ty : float) return float is
   begin
     return 1.0;
   end EvalPDF;
@@ -144,7 +171,7 @@ package body Materials is
     return (0.0, 0.0, 0.0);
   end Emittance;
 
-  function SampleAndEvalBxDF(mat : MaterialLambert; gen : RandRef; ray_dir, normal : float3) return MatSample is
+  function SampleAndEvalBxDF(mat : MaterialLambert; gen : RandRef; ray_dir, normal : float3; tx,ty : float) return MatSample is
     pdf      : float;
     cosTheta : float;
     newDir   : float3;
@@ -160,13 +187,13 @@ package body Materials is
 
   end SampleAndEvalBxDF;
 
-  function EvalBxDF(mat : MaterialLambert; l,v,n : float3) return float3 is
+  function EvalBxDF(mat : MaterialLambert; l,v,n : float3; tx,ty : float) return float3 is
     cosTheta : float := max(dot(n,l), 0.0);
   begin
     return mat.kd*cosTheta*INV_PI;
   end EvalBxDF;
 
-  function EvalPDF(mat : MaterialLambert; l,v,n : float3) return float is
+  function EvalPDF(mat : MaterialLambert; l,v,n : float3; tx,ty : float) return float is
     cosTheta : float := max(dot(n,l), 0.0);
   begin
     return cosTheta*INV_PI;
@@ -186,17 +213,17 @@ package body Materials is
     return (0.0, 0.0, 0.0);
   end Emittance;
 
-  function SampleAndEvalBxDF(mat : MaterialMirror; gen : RandRef; ray_dir, normal : float3) return MatSample is
+  function SampleAndEvalBxDF(mat : MaterialMirror; gen : RandRef; ray_dir, normal : float3; tx,ty : float) return MatSample is
   begin
     return (mat.reflection, reflect(ray_dir, normal), 1.0, true);
   end SampleAndEvalBxDF;
 
-  function EvalBxDF(mat : MaterialMirror; l,v,n : float3) return float3 is
+  function EvalBxDF(mat : MaterialMirror; l,v,n : float3; tx,ty : float) return float3 is
   begin
     return (0.0, 0.0, 0.0); -- no direct sampling for perfect mirrors
   end EvalBxDF;
 
-  function EvalPDF(mat : MaterialMirror; l,v,n : float3) return float is
+  function EvalPDF(mat : MaterialMirror; l,v,n : float3; tx,ty : float) return float is
   begin
     return 1.0;             -- no direct sampling for perfect mirrors
   end EvalPDF;
@@ -226,7 +253,7 @@ package body Materials is
     kt := (1.0-f)*kt;
   end ApplyFresnel;
 
-  function SampleAndEvalBxDF(mat : MaterialFresnelDielectric; gen : RandRef; ray_dir, normal : float3) return MatSample is
+  function SampleAndEvalBxDF(mat : MaterialFresnelDielectric; gen : RandRef; ray_dir, normal : float3; tx,ty : float) return MatSample is
     refl, trans : float3;
     ksitrans, ksirefl, ksi : float;
     nextDirection, bxdf : float3;
@@ -261,12 +288,12 @@ package body Materials is
 
   end SampleAndEvalBxDF;
 
-  function EvalBxDF(mat : MaterialFresnelDielectric; l,v,n : float3) return float3 is
+  function EvalBxDF(mat : MaterialFresnelDielectric; l,v,n : float3; tx,ty : float) return float3 is
   begin
     return (0.0, 0.0, 0.0); -- no direct sampling for perfect mirrors
   end EvalBxDF;
 
-  function EvalPDF(mat : MaterialFresnelDielectric; l,v,n : float3) return float is
+  function EvalPDF(mat : MaterialFresnelDielectric; l,v,n : float3; tx,ty : float) return float is
   begin
     return 1.0;             -- no direct sampling for perfect mirrors
   end EvalPDF;
@@ -286,7 +313,7 @@ package body Materials is
     return (0.0, 0.0, 0.0);
   end Emittance;
 
-  function SampleAndEvalBxDF(mat : MaterialPhong; gen : RandRef; ray_dir, normal : float3) return MatSample is
+  function SampleAndEvalBxDF(mat : MaterialPhong; gen : RandRef; ray_dir, normal : float3; tx,ty : float) return MatSample is
     pdf, cosTheta : float;
     nextDir, r    : float3;
     color         : float3;
@@ -303,7 +330,7 @@ package body Materials is
 
   end SampleAndEvalBxDF;
 
-  function EvalBxDF(mat : MaterialPhong; l,v,n : float3) return float3 is
+  function EvalBxDF(mat : MaterialPhong; l,v,n : float3; tx,ty : float) return float3 is
     r        : float3;
     cosTheta : float;
   begin
@@ -313,7 +340,7 @@ package body Materials is
   end EvalBxDF;
 
 
-  function EvalPDF(mat : MaterialPhong; l,v,n : float3) return float is
+  function EvalPDF(mat : MaterialPhong; l,v,n : float3; tx,ty : float) return float is
     r        : float3;
     cosTheta : float;
     pdf      : float;

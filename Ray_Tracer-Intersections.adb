@@ -27,8 +27,8 @@ package body Ray_Tracer.Intersections is
 	       is_hit     => (t > 0.0) and (abs(x) < 200.0) and (abs(y) < 200.0),
 	       t          => t,
                mat        => g_scn.materials(0),
-	       x          => x,
-               y          => y,
+	       tx          => x,
+               ty          => y,
                normal     => (0.0, 1.0, 0.0)
 	    );
     else
@@ -89,8 +89,8 @@ package body Ray_Tracer.Intersections is
 	      t          => tmax,
               mat        => g_scn.materials(boxData.mat_indices(planeId)),
               normal     => boxData.normals(planeId),
-	      x          => 0.0,
-              y          => 0.0
+	      tx          => 0.0,
+              ty          => 0.0
 	    );
     else
       return null_hit;
@@ -119,7 +119,8 @@ package body Ray_Tracer.Intersections is
 	     t          => tmin,
              mat        => g_scn.materials(4),
              normal     => (0.0,-1.0,0.0),
-             x => 0.0,y => 0.0
+             tx         => 0.0,
+             ty         => 0.0
 	   );
 
   end IntersectFlatLight;
@@ -170,7 +171,7 @@ package body Ray_Tracer.Intersections is
 	     t          => min_t,
              mat        => a_spheres(min_i).mat,
              normal     => normalize((r.origin + r.direction*min_t) - a_spheres(min_i).pos),
-             x => 0.0, y => 0.0
+             tx => 0.0, ty => 0.0
 	   );
 
   end IntersectAllSpheres;

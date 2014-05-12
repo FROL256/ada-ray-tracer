@@ -88,11 +88,11 @@ package body Ray_Tracer.Integrators is
       return (0.0, 0.0, 0.0);
     end if;
 
-    if IsLight(h.mat.all) then
+    if IsLight(h.mat) then
       if dot((-1.0)*r.direction, g_light.normal) < 0.0 then
         return (0.0, 0.0, 0.0);
       else
-        return Emittance(h.mat.all);
+        return Emittance(h.mat);
       end if;
     end if;
 
@@ -102,7 +102,7 @@ package body Ray_Tracer.Integrators is
     --  return (0.0, 0.0, 0.0);
     --end if;
 
-    matSam  := SampleAndEvalBxDF(h.mat.all, self.gen, r.direction, h.normal);
+    matSam  := SampleAndEvalBxDF(h.mat, self.gen, r.direction, h.normal, tx => h.tx, ty => h.ty);
     bxdfVal := matSam.color * (1.0/max(matSam.pdf, epsilonDiv));
 
     nextRay.origin    := r.origin + r.direction*h.t;
@@ -160,7 +160,7 @@ package body Ray_Tracer.Integrators is
       return (0.0, 0.0, 0.0);
     end if;
 
-    if IsLight(h.mat.all) then
+    if IsLight(h.mat) then
       return (0.0, 0.0, 0.0);
     end if;
 
@@ -175,7 +175,7 @@ package body Ray_Tracer.Integrators is
 
       cosTheta : float  := max(dot(sdir, (0.0,1.0,0.0)), 0.0);
       lgtPdf   : float  := PdfAtoW(1.0/g_light.surfaceArea, d, cosTheta); -- convert pdf to spherical coordinate system
-      bxdfVal  : float3 := EvalBxDF(h.mat.all, l => sdir, v => (-1.0)*r.direction, n => h.normal);
+      bxdfVal  : float3 := EvalBxDF(h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
 
     begin
 
@@ -188,7 +188,7 @@ package body Ray_Tracer.Integrators is
 
     -- pick up next ray
     --
-    matSam  := SampleAndEvalBxDF(h.mat.all, self.gen, r.direction, h.normal);
+    matSam  := SampleAndEvalBxDF(h.mat, self.gen, r.direction, h.normal, tx => h.tx, ty => h.ty);
     bxdfVal := matSam.color * (1.0/max(matSam.pdf, epsilonDiv));
 
     nextRay.origin    := r.origin + r.direction*h.t;
@@ -225,7 +225,7 @@ package body Ray_Tracer.Integrators is
       return (0.0, 0.0, 0.0);
     end if;
 
-    if IsLight(h.mat.all) then
+    if IsLight(h.mat) then
 
       if dot((-1.0)*r.direction, g_light.normal) < 0.0 then
         return (0.0, 0.0, 0.0);
@@ -247,7 +247,7 @@ package body Ray_Tracer.Integrators is
             misWeight := bsdfPdf*bsdfPdf/(lgtPdf*lgtPdf + bsdfPdf*bsdfPdf);
           end if;
 
-          return Emittance(h.mat.all)*misWeight;
+          return Emittance(h.mat)*misWeight;
         end;
 
       end if;
@@ -265,8 +265,8 @@ package body Ray_Tracer.Integrators is
 
       cosTheta : float  := max(dot(sdir, (0.0,1.0,0.0)), 0.0);
       lgtPdf   : float  := PdfAtoW(1.0/g_light.surfaceArea, dist, cosTheta); -- convert pdf to spherical coordinate system
-      bsdfPdf  : float  := EvalPDF (h.mat.all, l => sdir, v => (-1.0)*r.direction, n => h.normal);
-      bxdfVal  : float3 := EvalBxDF(h.mat.all, l => sdir, v => (-1.0)*r.direction, n => h.normal);
+      bsdfPdf  : float  := EvalPDF (h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
+      bxdfVal  : float3 := EvalBxDF(h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
 
       misWeight : float := lgtPdf*lgtPdf/(lgtPdf*lgtPdf + bsdfPdf*bsdfPdf);
 
@@ -280,7 +280,7 @@ package body Ray_Tracer.Integrators is
 
     -- pick up next ray
     --
-    matSam  := SampleAndEvalBxDF(h.mat.all, self.gen, r.direction, h.normal);
+    matSam  := SampleAndEvalBxDF(h.mat, self.gen, r.direction, h.normal, tx => h.tx, ty => h.ty);
     bxdfVal := matSam.color * (1.0/max(matSam.pdf, epsilonDiv));
 
     nextRay.origin    := r.origin + r.direction*h.t;

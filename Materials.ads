@@ -28,11 +28,22 @@ package Materials is
   type Material is abstract tagged null record;
   type MaterialRef is access Material'Class;
 
-  function IsLight(mat : Material) return Boolean is abstract;                     				    -- indicate the materias is light
-  function Emittance(mat : Material) return float3 is abstract;                    				    -- get light intensity
-  function SampleAndEvalBxDF(mat : Material; gen : RandRef; ray_dir, normal : float3) return MatSample is abstract; -- simultaniously create brdf/btdf sample and eval brdf/btdf value
-  function EvalBxDF(mat : Material; l,v,n : float3) return float3 is abstract;     				    -- eval brdf/btdf value for direct light sampling
-  function EvalPDF(mat : Material; l,v,n : float3) return float is abstract;                                        -- eval pdf for MIS with direct light sampling
+  function IsLight(mat : Material) return Boolean is abstract;                     				                    -- indicate the materias is light
+  function Emittance(mat : Material) return float3 is abstract;                    				                    -- get light intensity
+  function SampleAndEvalBxDF(mat : Material; gen : RandRef; ray_dir, normal : float3; tx,ty : float) return MatSample is abstract;  -- simultaniously create brdf/btdf sample and eval brdf/btdf value
+  function EvalBxDF(mat : Material; l,v,n : float3; tx,ty : float) return float3 is abstract;     				    -- eval brdf/btdf value for direct light sampling
+  function EvalPDF(mat : Material; l,v,n : float3; tx,ty : float) return float is abstract;                                         -- eval pdf for MIS with direct light sampling
+
+
+  -- This will simplify dispatching syntax.
+  -- We cas do this any time we use abstact types because
+  -- all of their functions are dispatching (virtual)
+  --
+  function IsLight(mat : MaterialRef) return Boolean;
+  function Emittance(mat : MaterialRef) return float3;
+  function SampleAndEvalBxDF(mat : MaterialRef; gen : RandRef; ray_dir, normal : float3; tx,ty : float) return MatSample;
+  function EvalBxDF(mat : MaterialRef; l,v,n : float3; tx,ty : float) return float3;
+  function EvalPDF(mat : MaterialRef; l,v,n : float3; tx,ty : float) return float;
 
   -----------------------------------------------------------------------------------------------------------------------------------
   -----------------------------------------------------------------------------------------------------------------------------------
@@ -47,9 +58,9 @@ package Materials is
 
   function IsLight(mat : MaterialAreaLight) return Boolean;
   function Emittance(mat : MaterialAreaLight) return float3;
-  function SampleAndEvalBxDF(mat : MaterialAreaLight; gen : RandRef; ray_dir, normal : float3) return MatSample;
-  function EvalBxDF(mat : MaterialAreaLight; l,v,n : float3) return float3;
-  function EvalPDF(mat : MaterialAreaLight; l,v,n : float3) return float;
+  function SampleAndEvalBxDF(mat : MaterialAreaLight; gen : RandRef; ray_dir, normal : float3; tx,ty : float) return MatSample;
+  function EvalBxDF(mat : MaterialAreaLight; l,v,n : float3; tx,ty : float) return float3;
+  function EvalPDF(mat : MaterialAreaLight; l,v,n : float3; tx,ty : float) return float;
 
   type MaterialAreaLightRef is access MaterialAreaLight;
 
@@ -62,9 +73,9 @@ package Materials is
 
   function IsLight(mat : MaterialLambert) return Boolean;
   function Emittance(mat : MaterialLambert) return float3;
-  function SampleAndEvalBxDF(mat : MaterialLambert; gen : RandRef; ray_dir, normal : float3) return MatSample;
-  function EvalBxDF(mat : MaterialLambert; l,v,n : float3) return float3;
-  function EvalPDF(mat : MaterialLambert; l,v,n : float3) return float;
+  function SampleAndEvalBxDF(mat : MaterialLambert; gen : RandRef; ray_dir, normal : float3; tx,ty : float) return MatSample;
+  function EvalBxDF(mat : MaterialLambert; l,v,n : float3; tx,ty : float) return float3;
+  function EvalPDF(mat : MaterialLambert; l,v,n : float3; tx,ty : float) return float;
 
   type MaterialLambertRef is access MaterialLambert;
 
@@ -77,9 +88,9 @@ package Materials is
 
   function IsLight(mat : MaterialMirror) return Boolean;
   function Emittance(mat : MaterialMirror) return float3;
-  function SampleAndEvalBxDF(mat : MaterialMirror; gen : RandRef; ray_dir, normal : float3) return MatSample;
-  function EvalBxDF(mat : MaterialMirror; l,v,n : float3) return float3;
-  function EvalPDF(mat : MaterialMirror; l,v,n : float3) return float;
+  function SampleAndEvalBxDF(mat : MaterialMirror; gen : RandRef; ray_dir, normal : float3; tx,ty : float) return MatSample;
+  function EvalBxDF(mat : MaterialMirror; l,v,n : float3; tx,ty : float) return float3;
+  function EvalPDF(mat : MaterialMirror; l,v,n : float3; tx,ty : float) return float;
 
   type MaterialMirrorRef is access MaterialMirror;
 
@@ -94,9 +105,9 @@ package Materials is
 
   function IsLight(mat : MaterialFresnelDielectric) return Boolean;
   function Emittance(mat : MaterialFresnelDielectric) return float3;
-  function SampleAndEvalBxDF(mat : MaterialFresnelDielectric; gen : RandRef; ray_dir, normal : float3) return MatSample;
-  function EvalBxDF(mat : MaterialFresnelDielectric; l,v,n : float3) return float3;
-  function EvalPDF(mat : MaterialFresnelDielectric; l,v,n : float3) return float;
+  function SampleAndEvalBxDF(mat : MaterialFresnelDielectric; gen : RandRef; ray_dir, normal : float3; tx,ty : float) return MatSample;
+  function EvalBxDF(mat : MaterialFresnelDielectric; l,v,n : float3; tx,ty : float) return float3;
+  function EvalPDF(mat : MaterialFresnelDielectric; l,v,n : float3; tx,ty : float) return float;
 
   procedure ApplyFresnel(mat: in MaterialFresnelDielectric; cosTheta : float; ks : in out float3; kt : in out float3);
 
@@ -112,9 +123,9 @@ package Materials is
 
   function IsLight(mat : MaterialPhong) return Boolean;
   function Emittance(mat : MaterialPhong) return float3;
-  function SampleAndEvalBxDF(mat : MaterialPhong; gen : RandRef; ray_dir, normal : float3) return MatSample;
-  function EvalBxDF(mat : MaterialPhong; l,v,n : float3) return float3;
-  function EvalPDF(mat : MaterialPhong; l,v,n : float3) return float;
+  function SampleAndEvalBxDF(mat : MaterialPhong; gen : RandRef; ray_dir, normal : float3; tx,ty : float) return MatSample;
+  function EvalBxDF(mat : MaterialPhong; l,v,n : float3; tx,ty : float) return float3;
+  function EvalPDF(mat : MaterialPhong; l,v,n : float3; tx,ty : float) return float;
 
   type MaterialPhongRef is access MaterialPhong;
 

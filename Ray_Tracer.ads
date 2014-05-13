@@ -16,10 +16,10 @@ package Ray_Tracer is
   width  : Positive := 800;
   height : Positive := 600;
 
-  threads_num : Positive := 8;
+  threads_num : Positive := 1;
 
   compute_shadows  : boolean  := true;
-  anti_aliasing_on : boolean  := true;
+  anti_aliasing_on : boolean  := false;
   g_max_depth      : Positive := 8;
 
   background_color : float3   := (0.0,0.0,0.0);
@@ -47,6 +47,7 @@ package Ray_Tracer is
 
   type AccumBuff is array (Integer range <>, integer range <>) of float3;
   type AccumBuffRef is access AccumBuff;
+
 
   type FloatBuff is array (Integer range <>, integer range <>) of float;
   type FloatBuffRef is access FloatBuff;

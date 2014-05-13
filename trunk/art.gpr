@@ -1,5 +1,3 @@
-with "C:\GtkAda\lib\gnat\gtkada.gpr";
-
 project ART is
 
    for Main use ("test.adb");

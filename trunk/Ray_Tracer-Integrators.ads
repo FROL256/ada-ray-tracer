@@ -105,12 +105,10 @@ private package Ray_Tracer.Integrators is
   procedure NextSample(gen           : in out RandomGenerator'Class;
                        I             : in float;
                        oldI          : in out float;
-                       totalSamples  : in integer;
-                       contrib       : in float3;
                        oldsample     : in out MLTSample;
                        cumulativeWeight : in out float;
-                       contribsample : out MLTSample;
-                       spectrum      : in out AccumBuffRef);
+                       contribsample    : in out MLTSample;
+                       resultVal        : in out float3);
 
 
 

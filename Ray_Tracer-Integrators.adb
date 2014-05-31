@@ -812,7 +812,7 @@ package body Ray_Tracer.Integrators is
     if a > 0.0 then
 
        if largeStep then
-          newsample.w := (a + 1.0)*I/(I/b + plarge); --  (a + float(gen.large_step))/((I/b+plarge)*M);  !!!!!!!!!!!
+          newsample.w := (a + 1.5)*I/(I/b + plarge); --  (a + float(gen.large_step))/((I/b+plarge)*M);  !!!!!!!!!!!
        else
           newsample.w := a*I/(I/b + plarge);
        end if;
@@ -985,7 +985,7 @@ package body Ray_Tracer.Integrators is
             --self.mltHist(x,y)  := c1*self.mltHist(x,y)  + c2*contribVal;
             --self.lumArray(x,y) := c1*self.lumArray(x,y) + c2*Fx;                 -- Fy or Fx or what ???
             --colBuff(x,y)       := (1.0/3.0)*self.mltHist(x,y);                    --*self.lumArray(x,y)*(1.0/4.0);
-            colBuff(x,y) := c1*colBuff(x,y) + c2*contribVal*(1.0/3.0);
+            colBuff(x,y) := c1*colBuff(x,y) + c2*contribVal; --*(1.0/3.0);
           end;
 
           --self.mltHist(x, y) := c1*self.mltHist(x, y) + c2*newsample.contrib*newsample.w;
@@ -1007,5 +1007,3 @@ package body Ray_Tracer.Integrators is
 
 
 end Ray_Tracer.Integrators;
-
-

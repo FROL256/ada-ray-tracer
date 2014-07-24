@@ -2,6 +2,7 @@ with Ada.Text_IO;
 with Ada.Numerics;
 with Ada.Numerics.Generic_Elementary_Functions;
 with Materials;
+with Lights;
 with Ada.Exceptions;
 with Ray_Tracer;
 with Ray_Tracer.Intersections;
@@ -10,6 +11,7 @@ with Ray_Tracer.Intersections;
 use Ada.Numerics;
 use Ada.Text_IO;
 use Materials;
+use Lights;
 use Ray_Tracer;
 use Ray_Tracer.Intersections;
 
@@ -118,16 +120,17 @@ package body Ray_Tracer.Integrators is
 
   -- explicit light sampling utils
   --
-  function LightSample(gen : RandRef; lightGeom : FlatLight) return float3 is
-    r1 : float := gen.rnd_uniform(0.0, 1.0);
-    r2 : float := gen.rnd_uniform(0.0, 1.0);
-    x,y,z : float;
-  begin
-    x := lightGeom.boxMin.x + r1*(lightGeom.boxMax.x - lightGeom.boxMin.x);
-    y := lightGeom.boxMin.y;
-    z := lightGeom.boxMin.z + r2*(lightGeom.boxMax.z - lightGeom.boxMin.z);
-    return (x, y, z);
-  end LightSample;
+
+ -- function LightSample(gen : RandRef; lightGeom : FlatLight) return float3 is
+ --   r1 : float := gen.rnd_uniform(0.0, 1.0);
+ --   r2 : float := gen.rnd_uniform(0.0, 1.0);
+ --   x,y,z : float;
+ -- begin
+ --   x := lightGeom.boxMin.x + r1*(lightGeom.boxMax.x - lightGeom.boxMin.x);
+ --   y := lightGeom.boxMin.y;
+ --   z := lightGeom.boxMin.z + r2*(lightGeom.boxMax.z - lightGeom.boxMin.z);
+ --   return (x, y, z);
+ -- end LightSample;
 
   function PdfAtoW(aPdfA : in float; aDist : in float; aCosThere : in float) return float is
   begin
@@ -167,20 +170,24 @@ package body Ray_Tracer.Integrators is
     -- explicit sampling
     --
     declare
+      
+      lsam  : LightSample := Sample(g_lightRef, self.gen);
+      aPDF  : float       := AreaPDF(g_lightRef);
 
       hpos  : float3 := (r.origin + r.direction*h.t);
-      lpos  : float3 := LightSample(self.gen, g_light);
+      lpos  : float3 := lsam.pos;
+      --lpos  : float3 := LightSample(self.gen, g_light);
       d     : float  := length(hpos - lpos);
       sdir  : float3 := normalize(lpos - hpos);
 
-      cosTheta : float  := max(dot(sdir, (0.0,1.0,0.0)), 0.0);
-      lgtPdf   : float  := PdfAtoW(1.0/g_light.surfaceArea, d, cosTheta); -- convert pdf to spherical coordinate system
+      cosTheta : float  := max(dot(sdir, (-1.0)*lsam.norm), 0.0);
+      lgtPdf   : float  := PdfAtoW(aPDF, d, cosTheta); -- convert pdf to spherical coordinate system
       bxdfVal  : float3 := EvalBxDF(h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
 
     begin
 
       if not ComputeShadow(hpos, lpos).in_shadow then
-        explicitColor := g_light.intensity*bxdfVal*(1.0/max(lgtPdf, epsilonDiv));
+        explicitColor := lsam.intensity*bxdfVal*(1.0/max(lgtPdf, epsilonDiv));
       end if;
 
     end;
@@ -258,13 +265,16 @@ package body Ray_Tracer.Integrators is
     --
     declare
 
+      lsam  : LightSample := Sample(g_lightRef, self.gen);
+      aPDF  : float       := AreaPDF(g_lightRef);
+
       hpos  : float3 := (r.origin + r.direction*h.t);
-      lpos  : float3 := LightSample(self.gen, g_light);
+      lpos  : float3 := lsam.pos;
       dist  : float  := length(hpos - lpos);
       sdir  : float3 := normalize(lpos - hpos);
 
-      cosTheta : float  := max(dot(sdir, (0.0,1.0,0.0)), 0.0);
-      lgtPdf   : float  := PdfAtoW(1.0/g_light.surfaceArea, dist, cosTheta); -- convert pdf to spherical coordinate system
+      cosTheta : float  := max(dot(sdir, (-1.0)*lsam.norm), 0.0);
+      lgtPdf   : float  := PdfAtoW(aPDF, dist, cosTheta); -- convert pdf to spherical coordinate system
       bsdfPdf  : float  := EvalPDF (h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
       bxdfVal  : float3 := EvalBxDF(h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
 

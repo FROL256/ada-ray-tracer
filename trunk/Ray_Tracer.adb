@@ -156,10 +156,10 @@ package body Ray_Tracer is
 
     --tracer := new SimplePathTracer;
     --tracer := new PathTracerWithShadowRays;
-    --tracer := new PathTracerMIS;
+    tracer := new PathTracerMIS;
     --tracer := new MLTCopyImage;
     --tracer := new MLTSimple;
-    tracer := new MLTKelmenSimple;
+    --tracer := new MLTKelmenSimple;
 
     tracer.gen := mygen; -- default simple generator
     tracer.Init;         -- Ada 2005 style virtual function call
@@ -240,8 +240,6 @@ package body Ray_Tracer is
   procedure InitCornellBoxScene is
   begin
 
-    g_light.surfaceArea := (g_light.boxMax.x - g_light.boxMin.x)*(g_light.boxMax.z - g_light.boxMin.z);
-
     -- init spheres geometry
     --
     if g_scn.spheres /= null then
@@ -250,12 +248,39 @@ package body Ray_Tracer is
 
     g_scn.spheres := new Spheres_Array(0..1);
 
+    -- create lights
+    --
+    declare
 
-    -- new api materials
+     boxMin : float3 := (-0.75, 4.98, 1.25);
+     boxMax : float3 := ( 0.75, 4.98, 3.25);
+     normal : float3 := (0.0, -1.0, 0.0);
+     intensity : float3 := ( 20.0, 20.0, 20.0);
+
+     flatLight : LightRef := new AreaLight'( boxMin      => boxMin,
+                                             boxMax      => boxMax,
+                                             normal      => normal,
+                                             intensity   => intensity,
+                                             surfaceArea => (boxMax.x - boxMin.x)*(boxMax.z - boxMin.z)
+                                           );
+
+    begin
+
+      g_lightRef := flatLight;
+
+      g_light.boxMin := boxMin; -- for geom code, this is temporary
+      g_light.boxMax := boxMax;
+      g_light.normal := normal;
+      g_light.intensity := intensity;
+
+    end;
+
+    -- create materials
     -- this should cause memry leak, but i'm too lazy to implement memory management for this case (need to implement abtract delete function)
     --
     declare
-      lmatRef   : MaterialRef := new MaterialAreaLight'(emission => g_light.intensity);
+
+      lmatRef   : MaterialRef := new MaterialAreaLight'(emission => GetIntensity(g_lightRef));
 
       dmatWhite : MaterialRef := new MaterialLambert'(kd => (0.5, 0.5, 0.5));
       dmatRed   : MaterialRef := new MaterialLambert'(kd => (0.5, 0.0, 0.0));
@@ -284,7 +309,6 @@ package body Ray_Tracer is
 
     end;
 
-    --materials(0) :=
 
     g_scn.spheres(0).pos := (-1.5,1.0,1.5);
     g_scn.spheres(0).r   := 1.0;
@@ -292,8 +316,6 @@ package body Ray_Tracer is
     g_scn.spheres(1).pos := (1.4,1.0,3.0);
     g_scn.spheres(1).r   := 1.0;
 
-    g_scn.lights(0).color := (2.5, 2.5, 2.5);
-    g_scn.lights(0).pos   := (0.0, 4.97, 2.25);
 
     -- setup camera
     --
@@ -308,6 +330,7 @@ package body Ray_Tracer is
   procedure ResizeViewport(size_x, size_y : integer) is
 
   begin
+
     width  := Positive(size_x);
     height := Positive(size_y);
 

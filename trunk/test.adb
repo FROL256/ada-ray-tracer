@@ -35,7 +35,6 @@ begin
    Ray_Tracer.InitCornellBoxScene;
    Ray_Tracer.ResizeViewport(Ray_Tracer.width, Ray_Tracer.height);
 
-
    Bitmap.Init(image, Ray_Tracer.width, Ray_Tracer.height);
 
    Put_Line("render start");

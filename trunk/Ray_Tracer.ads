@@ -3,12 +3,14 @@ with Ada.Numerics.Float_Random;
 with Ada.Assertions;
 with Vector_Math;
 with Materials;
+with Lights;
 with Ada.Unchecked_Deallocation;
 limited private with Ray_Tracer.Integrators; -- just want to put Integrators to another package
 
 use Interfaces;
 use Vector_Math;
 use Materials;
+use Lights;
 use Ada.Assertions;
 
 package Ray_Tracer is
@@ -16,10 +18,10 @@ package Ray_Tracer is
   width  : Positive := 800;
   height : Positive := 600;
 
-  threads_num : Positive := 1;
+  threads_num : Positive := 8;
 
   compute_shadows  : boolean  := true;
-  anti_aliasing_on : boolean  := false;
+  anti_aliasing_on : boolean  := true;
   g_max_depth      : Positive := 8;
 
   background_color : float3   := (0.0,0.0,0.0);
@@ -82,11 +84,6 @@ private
   type AABB is record
     min : float3;
     max : float3;
-  end record;
-
-  type Light is record
-    pos   : float3;
-    color : float3;
   end record;
 
   type FlatLight is record
@@ -183,12 +180,12 @@ private
   --
 
   type Materials_Array is array (0 .. 10) of MaterialRef;
-  type Lights_Array    is array (0 .. 1)  of Light;
+  --type Lights_Array    is array (0 .. 1)  of Light;
 
   type Scene is record
 
     materials : Materials_Array;
-    lights    : Lights_Array;
+    --lights    : Lights_Array;
     spheres   : Spheres_Array_Ptr;
 
   end record;
@@ -209,15 +206,8 @@ private
   );
 
 
-  g_light : FlatLight :=
-  (
-    boxMin      => (-0.75, 4.98, 1.25),
-    boxMax      => ( 0.75, 4.98, 3.25),
-    normal      => (0.0, -1.0, 0.0),
-    intensity   => ( 15.0, 15.0, 15.0),
-    surfaceArea => 1.0
-  );
-
+  g_light : FlatLight;
+  g_lightRef : LightRef := null;
 
 end Ray_Tracer;
 

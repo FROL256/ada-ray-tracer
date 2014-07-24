@@ -9,8 +9,8 @@ project ART is
    case Library_Type is
 
       when "static" =>
-         for Source_Files use ("Bitmap.adb", "Bitmap.ads", "Generic_Vector_Math.adb", "Generic_Vector_Math.ads", "Materials.adb", "Materials.ads", "Ray_Tracer-Integrators.adb", "Ray_Tracer-Integrators.ads", 
-            "Ray_Tracer-Intersections.adb", "Ray_Tracer-Intersections.ads", "Ray_Tracer.adb", "Ray_Tracer.ads", "test.adb", "Vector_Math.adb", "Vector_Math.ads", "Vector_Math.ads");
+         for Source_Files use ("Bitmap.adb", "Bitmap.ads", "Generic_Vector_Math.adb", "Generic_Vector_Math.ads", "Lights.adb", "Lights.ads", "Materials.adb", "Materials.ads", "Ray_Tracer-Integrators.adb", 
+            "Ray_Tracer-Integrators.ads", "Ray_Tracer-Intersections.adb", "Ray_Tracer-Intersections.ads", "Ray_Tracer.adb", "Ray_Tracer.ads", "test.adb", "Vector_Math.adb", "Vector_Math.ads", "Vector_Math.ads");
 
       when "relocatable" =>
          for Source_Files use ("Generic_Vector_Math.adb", "Generic_Vector_Math.ads", "Materials.adb", "Materials.ads", "my_widget.adb", "my_widget.ads", "Ray_Tracer-Integrators.adb", "Ray_Tracer-Integrators.ads", 

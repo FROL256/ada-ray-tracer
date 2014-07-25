@@ -39,6 +39,7 @@ package body Lights is
     res.pos.y := l.boxMin.y;
     res.pos.z := l.boxMin.z + r2*(l.boxMax.z - l.boxMin.z);
     res.norm  := l.normal;
+    res.apdf  := AreaPDF(l);
     res.intensity := l.intensity;
 
     return res;
@@ -65,6 +66,7 @@ package body Lights is
     --res.pos.x := l.boxMin.x + r1*(l.boxMax.x - l.boxMin.x);
     --res.pos.y := l.boxMin.y;
     --res.pos.z := l.boxMin.z + r2*(l.boxMax.z - l.boxMin.z);
+    res.apdf  := AreaPDF(l);
     return res;
   end Sample;
 

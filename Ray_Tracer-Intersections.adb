@@ -89,8 +89,8 @@ package body Ray_Tracer.Intersections is
 	      t          => tmax,
               mat        => g_scn.materials(boxData.mat_indices(planeId)),
               normal     => boxData.normals(planeId),
-	      tx          => 0.0,
-              ty          => 0.0
+	      tx         => 0.0,
+              ty         => 0.0
 	    );
     else
       return null_hit;

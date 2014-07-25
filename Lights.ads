@@ -14,6 +14,7 @@ package Lights is
     pos       : float3 := (0.0, 0.0, 0.0);
     norm      : float3 := (0.0, 0.0, 0.0);
     intensity : float3 := (0.0, 0.0, 0.0);
+    apdf      : float  := 1.0;
   end record;
 
   type Light is abstract tagged null record;

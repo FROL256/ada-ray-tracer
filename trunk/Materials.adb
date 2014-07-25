@@ -106,6 +106,11 @@ package body Materials is
     return IsLight(mat.all);
   end IsLight;
 
+  function GetLightRef(mat : MaterialRef) return LightRef is
+  begin
+    return GetLightRef(mat.all);
+  end GetLightRef;
+
   function Emittance(mat : MaterialRef) return float3 is
   begin
     return Emittance(mat.all);
@@ -132,27 +137,38 @@ package body Materials is
   ---- Simple Emissive Material ----
   ----------------------------------
 
-  function IsLight(mat : MaterialAreaLight) return Boolean is
+  function IsLight(mat : MaterialLight) return Boolean is
   begin
     return true;
   end IsLight;
 
-  function Emittance(mat : MaterialAreaLight) return float3 is
+  function Emittance(mat : MaterialLight) return float3 is
   begin
-    return mat.emission;
+
+    if mat.lref = null then
+      return (0.0, 0.0, 0.0);
+    else
+      return GetIntensity(mat.lref);
+    end if;
+
   end Emittance;
 
-  function SampleAndEvalBxDF(mat : MaterialAreaLight; gen : RandRef; ray_dir, normal : float3; tx,ty : float) return MatSample is
+  function GetLightRef(mat : MaterialLight) return LightRef is
+  begin
+    return mat.lref;
+  end GetLightRef;
+
+  function SampleAndEvalBxDF(mat : MaterialLight; gen : RandRef; ray_dir, normal : float3; tx,ty : float) return MatSample is
   begin
     return ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), 1.0, false);
   end SampleAndEvalBxDF;
 
-  function EvalBxDF(mat : MaterialAreaLight; l,v,n : float3; tx,ty : float) return float3 is
+  function EvalBxDF(mat : MaterialLight; l,v,n : float3; tx,ty : float) return float3 is
   begin
     return (0.0, 0.0, 0.0);
   end EvalBxDF;
 
-  function EvalPDF(mat : MaterialAreaLight; l,v,n : float3; tx,ty : float) return float is
+  function EvalPDF(mat : MaterialLight; l,v,n : float3; tx,ty : float) return float is
   begin
     return 1.0;
   end EvalPDF;
@@ -170,6 +186,11 @@ package body Materials is
   begin
     return (0.0, 0.0, 0.0);
   end Emittance;
+
+  function GetLightRef(mat : MaterialLambert) return LightRef is
+  begin
+    return null;
+  end GetLightRef;
 
   function SampleAndEvalBxDF(mat : MaterialLambert; gen : RandRef; ray_dir, normal : float3; tx,ty : float) return MatSample is
     pdf      : float;
@@ -213,6 +234,11 @@ package body Materials is
     return (0.0, 0.0, 0.0);
   end Emittance;
 
+  function GetLightRef(mat : MaterialMirror) return LightRef is
+  begin
+    return null;
+  end GetLightRef;
+
   function SampleAndEvalBxDF(mat : MaterialMirror; gen : RandRef; ray_dir, normal : float3; tx,ty : float) return MatSample is
   begin
     return (mat.reflection, reflect(ray_dir, normal), 1.0, true);
@@ -242,6 +268,10 @@ package body Materials is
     return (0.0, 0.0, 0.0);
   end Emittance;
 
+  function GetLightRef(mat : MaterialFresnelDielectric) return LightRef is
+  begin
+    return null;
+  end GetLightRef;
 
   procedure ApplyFresnel(mat: in MaterialFresnelDielectric; cosTheta : float; ks : in out float3; kt : in out float3) is
     etaInt : float := 1.0;
@@ -312,6 +342,11 @@ package body Materials is
   begin
     return (0.0, 0.0, 0.0);
   end Emittance;
+
+  function GetLightRef(mat : MaterialPhong) return LightRef is
+  begin
+    return null;
+  end GetLightRef;
 
   function SampleAndEvalBxDF(mat : MaterialPhong; gen : RandRef; ray_dir, normal : float3; tx,ty : float) return MatSample is
     pdf, cosTheta : float;

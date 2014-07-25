@@ -280,7 +280,7 @@ package body Ray_Tracer is
     --
     declare
 
-      lmatRef   : MaterialRef := new MaterialAreaLight'(emission => GetIntensity(g_lightRef));
+      lmatRef   : MaterialRef := new MaterialLight'(lref => g_lightRef);
 
       dmatWhite : MaterialRef := new MaterialLambert'(kd => (0.5, 0.5, 0.5));
       dmatRed   : MaterialRef := new MaterialLambert'(kd => (0.5, 0.0, 0.0));

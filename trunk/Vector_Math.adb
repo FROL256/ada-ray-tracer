@@ -55,6 +55,12 @@ package body Vector_Math is
     end if;
   end sign;
 
+
+  function lerp(t,a,b : float) return float is
+  begin
+    return (1.0 - t) * a + t * b;
+  end lerp;
+
   function normalize (a : float3) return float3 is
     l_inv : float;
   begin

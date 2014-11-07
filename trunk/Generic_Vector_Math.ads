@@ -59,8 +59,6 @@ package Generic_Vector_Math is
 
   function clamp(x,a,b : T) return T;
 
-
-
   type Matrix4 is array (0..3, 0..3) of T;
 
   function "*"(v : vector3; m : Matrix4) return vector3;

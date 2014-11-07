@@ -191,7 +191,10 @@ package body Ray_Tracer.Intersections is
 
     hits(1) := IntersectAllSpheres(r, g_scn.spheres);
     hits(2) := IntersectCornellBox(r, my_cornell_box);
-    hits(3) := IntersectFlatLight(r, g_light);
+
+    if GetShapeType(g_lightRef) = Light_Shape_Rect then
+      hits(3) := IntersectFlatLight(r, g_light);
+    end if;
 
     for i in hits'First .. hits'Last loop
 

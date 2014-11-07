@@ -39,7 +39,7 @@ package Materials is
 
 
   -- This will simplify dispatching syntax.
-  -- We cas do this any time we use abstact types because
+  -- We can do this any time we use abstact types because
   -- all of their functions are dispatching (virtual)
   --
   function IsLight(mat : MaterialRef) return Boolean;

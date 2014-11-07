@@ -104,17 +104,144 @@ package body Lights is
   end AreaPDF;
 
 
+  procedure CoordinateSystem(v1 : in float3; v2 : out float3; v3 : out float3) is
+    invLen : float;
+  begin
+
+    if abs(v1.x) > abs(v1.x) then
+      invLen := 1.0 / sqrt(v1.x*v1.x + v1.z*v1.z);
+      v2     := (-v1.z * invLen, 0.0, v1.x * invLen);
+    else
+      invLen := 1.0 / sqrt(v1.y*v1.y + v1.z*v1.z);
+      v2     := (0.0, v1.z * invLen, -v1.y * invLen);
+    end if;
+
+    v3 := cross(v1, v2);
+
+  end CoordinateSystem;
+
+  function DistanceSquared(a : float3; b : float3) return float is
+    diff : float3 := (b - a);
+  begin
+    return dot(diff, diff);
+  end DistanceSquared;
+
+
+  function UniformSampleSphere(u1 : float; u2 : float) return float3 is
+    x,y,z,r,phi : float;
+  begin
+    z   := 1.0 - 2.0 * u1;
+    r   := sqrt(max(0.0, 1.0 - z*z));
+    phi := 2.0 * M_PI * u2;
+    x   := r * cos(phi);
+    y   := r * sin(phi);
+    return (x,y,z);
+  end UniformSampleSphere;
+
+  function UniformSampleCone(u1 : float; u2 : float; costhetamax : float; x : float3; y : float3; z : float3) return float3 is
+    phi,costheta,sintheta : float;
+  begin
+    costheta := lerp(u1, costhetamax, 1.0);
+    sintheta := sqrt(1.0 - costheta*costheta);
+    phi      := u2 * 2.0 * M_PI;
+    return cos(phi) * sintheta * x + sin(phi) * sintheta * y +  costheta * z;
+  end UniformSampleCone;
+
+  function UniformConePdf(cosThetaMax : float) return float is
+  begin
+    return 1.0 / (2.0 * M_PI * (1.0 - cosThetaMax));
+  end UniformConePdf;
+
+  function RaySphereIntersect(rayPos : float3; rayDir : float3; sphPos : float3; radius : float) return float2 is
+    t1, t2 : float;
+    k      : float3;
+    b, c, d, sqrtd : float;
+    res : float2;
+  begin
+
+    k := rayPos - sphPos;
+    b := dot(k,rayDir);
+    c := dot(k,k) - radius*radius;
+    d := b * b - c;
+
+    if d >= 0.0 then
+
+      sqrtd := sqrt(d);
+      t1 := -b - sqrtd;
+      t2 := -b + sqrtd;
+
+      res.x := min(t1,t2);
+      res.y := max(t1,t2);
+
+    else
+
+     res.x := -infinity;
+     res.y := -infinity;
+
+    end if;
+
+    return res;
+  end RaySphereIntersect;
+
+
   function Sample(l : SphereLight; gen : RandRef; lluminatingPoint : float3) return LightSample is
-    r1  : float := gen.rnd_uniform(0.0, 1.0);
-    r2  : float := gen.rnd_uniform(0.0, 1.0);
+    u1  : float := gen.rnd_uniform(0.0, 1.0);
+    u2  : float := gen.rnd_uniform(0.0, 1.0);
+
+    wc, wcX, wcY : float3;
+    sinThetaMax2,cosThetaMax,thit : float;
+    rpos, rdir : float3;
+    hitMinMax : float2;
+
     res : LightSample;
   begin
+    res.intensity := l.intensity;
+
+    if DistanceSquared(lluminatingPoint, l.center) - l.radius*l.radius < 1.0e-4 then
+      res.pos  := l.center + l.radius*UniformSampleSphere(u1, u2);
+      res.norm := normalize(res.pos - l.center);
+      return res;
+    end if;
+
+    wc := normalize(l.center - lluminatingPoint);
+    CoordinateSystem(wc, v2 => wcX, v3 => wcY);
+
+    sinThetaMax2 := l.radius*l.radius / DistanceSquared(lluminatingPoint, l.center);
+    cosThetaMax  := sqrt(max(0.0, 1.0 - sinThetaMax2));
+
+    rdir := UniformSampleCone(u1, u2, cosThetaMax, wcX, wcY, wc);
+    rpos := lluminatingPoint + rdir*(1.0e-3);
+
+    -- calc ray sphere intersection and store hit distance in thit
+    --
+    hitMinMax := RaySphereIntersect(rpos, rdir, l.center, l.radius);
+
+    if hitMinMax.x < 0.0 then -- !Intersect(r, &thit, &rayEpsilon, &dgSphere)
+      thit := dot(l.center - lluminatingPoint, normalize(rdir));
+    else
+      thit := hitMinMax.x;
+    end if;
+
+    res.pos  := rpos + thit*rdir;
+    res.norm := normalize(res.pos - l.center);
+    res.pdf  := EvalPDF(l, lluminatingPoint, rdir, thit);
+
     return res;
   end  Sample;
 
   function EvalPDF(l : SphereLight; lluminatingPoint : float3; rayDir : float3; hitDist : float) return float is
+    sinThetaMax2, cosThetaMax : float;
   begin
-   return 1.0/l.surfaceArea;
+
+    if DistanceSquared(lluminatingPoint, l.center) - l.radius*l.radius < 1.0e-4 then
+      return 1.0/l.surfaceArea;
+    end if;
+
+    sinThetaMax2 := l.radius*l.radius / DistanceSquared(lluminatingPoint, l.center);
+    cosThetaMax  := sqrt(max(0.0, 1.0 - sinThetaMax2));
+
+    return UniformConePdf(cosThetaMax);
+
   end EvalPDF;
 
 

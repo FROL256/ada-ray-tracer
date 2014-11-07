@@ -264,16 +264,22 @@ package body Ray_Tracer is
                                              surfaceArea => (boxMax.x - boxMin.x)*(boxMax.z - boxMin.z)
                                            );
 
-     sphPos    : float3 := (0.0, 4.0, 0.0);
+     sphPos    : float3 := (0.0, 4.0, 2.0);
      sphRadius : float  := 0.5;
+
+     sphLight : LightRef := new SphereLight'( center      => sphPos,
+                                              radius      => sphRadius,
+                                              intensity   => intensity*0.5,
+                                              surfaceArea => 4.0*M_PI*sphRadius*sphRadius );
 
      oldSpheresNum : integer := g_scn.spheres'Size;
 
     begin
 
-      g_lightRef := flatLight;
+      --g_lightRef := flatLight;
+      g_lightRef := sphLight;
 
-      if GetShapeType(g_lightRef) = Light_Shape_Rect then                        -- change with virtual function call
+     if GetShapeType(g_lightRef) = Light_Shape_Rect then                        -- change with virtual function call
 
         g_light.boxMin := boxMin; -- for geom code, this is temporary
         g_light.boxMax := boxMax;

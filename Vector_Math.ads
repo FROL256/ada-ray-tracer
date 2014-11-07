@@ -24,12 +24,13 @@ package Vector_Math is
   type float4 is new Float_Math.vector4;
   type float4x4 is new Float_Math.Matrix4;
 
-  function sqr(x : float) return float renames Float_Math.sqr;
-  function min(a, b : float) return float renames Float_Math.min;
-  function max(a, b : float) return float renames Float_Math.max;
+  function sqr(x : float)       return float renames Float_Math.sqr;
+  function min(a, b : float)    return float renames Float_Math.min;
+  function max(a, b : float)    return float renames Float_Math.max;
   function min(a, b, c : float) return float renames Float_Math.min;
   function max(a, b, c : float) return float renames Float_Math.max;
   function clamp(x,a,b : float) return float renames Float_Math.clamp;
+  function lerp (t,a,b : float) return float;
 
   function length(a : float3) return float;
   function normalize (a : float3) return float3;

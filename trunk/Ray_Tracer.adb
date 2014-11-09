@@ -264,7 +264,7 @@ package body Ray_Tracer is
                                              surfaceArea => (boxMax.x - boxMin.x)*(boxMax.z - boxMin.z)
                                            );
 
-     sphPos    : float3 := (0.0, 4.0, 2.0);
+     sphPos    : float3 := (0.0, 4.5, 1.0);
      sphRadius : float  := 0.5;
 
      sphLight : LightRef := new SphereLight'( center      => sphPos,

@@ -18,7 +18,7 @@ package body Lights is
     return GetIntensity(l.all);
   end GetIntensity;
 
-  function Sample(l : LightRef; gen : RandRef; lluminatingPoint : float3) return LightSample is
+  function Sample(l : LightRef; gen : RandRef; lluminatingPoint : float3) return ShadowSample is
   begin
     return Sample(l.all, gen, lluminatingPoint);
   end Sample;
@@ -53,18 +53,18 @@ package body Lights is
   end AreaPDF;
 
 
-  function Sample(l : AreaLight; gen : RandRef; lluminatingPoint : float3) return LightSample is
+  function Sample(l : AreaLight; gen : RandRef; lluminatingPoint : float3) return ShadowSample is
     r1  : float := gen.rnd_uniform(0.0, 1.0);
     r2  : float := gen.rnd_uniform(0.0, 1.0);
     cosTheta : float; -- := max(dot(sdir, (-1.0)*lsam.norm), 0.0);
     rayDir   : float3;
     d   : float;
-    res : LightSample;
+    res : ShadowSample;
   begin
     res.pos.x := l.boxMin.x + r1*(l.boxMax.x - l.boxMin.x);
     res.pos.y := l.boxMin.y;
     res.pos.z := l.boxMin.z + r2*(l.boxMax.z - l.boxMin.z);
-    res.norm  := l.normal;
+    res.dir   := l.normal;
 
     rayDir    := res.pos - lluminatingPoint;
     d         := length(rayDir);
@@ -108,7 +108,7 @@ package body Lights is
     invLen : float;
   begin
 
-    if abs(v1.x) > abs(v1.x) then
+    if abs(v1.x) > abs(v1.y) then
       invLen := 1.0 / sqrt(v1.x*v1.x + v1.z*v1.z);
       v2     := (-v1.z * invLen, 0.0, v1.x * invLen);
     else
@@ -184,7 +184,7 @@ package body Lights is
   end RaySphereIntersect;
 
 
-  function Sample(l : SphereLight; gen : RandRef; lluminatingPoint : float3) return LightSample is
+  function Sample(l : SphereLight; gen : RandRef; lluminatingPoint : float3) return ShadowSample is
     u1  : float := gen.rnd_uniform(0.0, 1.0);
     u2  : float := gen.rnd_uniform(0.0, 1.0);
 
@@ -193,13 +193,13 @@ package body Lights is
     rpos, rdir : float3;
     hitMinMax : float2;
 
-    res : LightSample;
+    res : ShadowSample;
   begin
     res.intensity := l.intensity;
 
     if DistanceSquared(lluminatingPoint, l.center) - l.radius*l.radius < 1.0e-4 then
       res.pos  := l.center + l.radius*UniformSampleSphere(u1, u2);
-      res.norm := normalize(res.pos - l.center);
+      res.dir  := normalize(res.pos - l.center);
       return res;
     end if;
 
@@ -222,9 +222,9 @@ package body Lights is
       thit := hitMinMax.x;
     end if;
 
-    res.pos  := rpos + thit*rdir;
-    res.norm := normalize(res.pos - l.center);
-    res.pdf  := EvalPDF(l, lluminatingPoint, rdir, thit);
+    res.pos := rpos + thit*rdir;
+    res.dir := normalize(res.pos - l.center);
+    res.pdf := EvalPDF(l, lluminatingPoint, rdir, thit);
 
     return res;
   end  Sample;

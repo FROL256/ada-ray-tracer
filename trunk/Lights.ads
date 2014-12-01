@@ -1,13 +1,11 @@
 with Interfaces;
 with Ada.Numerics.Float_Random;
 with Vector_Math;
---with Ray_Tracer.Intersections;
 with Ada.Unchecked_Deallocation;
 with Ada.Text_IO;
 
 use Interfaces;
 use Vector_Math;
---use Ray_Tracer.Intersections;
 use Ada.Text_IO;
 
 package Lights is

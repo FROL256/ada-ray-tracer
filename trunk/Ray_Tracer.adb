@@ -3,7 +3,6 @@ with Ada.Numerics;
 with Ada.Numerics.Generic_Elementary_Functions;
 with Materials;
 with Ada.Exceptions;
-with Ray_Tracer.Intersections;
 with Ray_Tracer.Integrators;
 
 use Ada.Numerics;
@@ -118,7 +117,7 @@ package body Ray_Tracer is
 
     res.shadowRay := shadowRay;
 
-    h := Intersections.FindClosestHit(shadowRay);
+    h := FindClosestHit(shadowRay);
 
     maxDist  := length(hit_pos - lpos);
     epsilon2 := max(maxDist*0.000001, 1.0e-30);
@@ -137,6 +136,35 @@ package body Ray_Tracer is
 
 
 
+  function FindClosestHit(r: Ray) return Hit is
+    hits : array (1..3) of Hit;
+    nearestHitIndex : integer range hits'First..hits'Last := 1;
+    nearestHitDist  : float := infinity;
+  begin
+
+    hits(1) := IntersectAllSpheres(r, g_scn.spheres);
+    hits(2) := IntersectCornellBox(r, my_cornell_box);
+
+    if GetShapeType(g_lightRef) = Light_Shape_Rect then
+      hits(3) := IntersectFlatLight(r, g_light, g_scn.materials(4));
+    end if;
+
+    for i in hits'First .. hits'Last loop
+
+      if hits(i).is_hit and hits(i).t < nearestHitDist then
+        nearestHitIndex := i;
+        nearestHitDist  := hits(i).t;
+      end if;
+
+    end loop;
+
+    if hits(nearestHitIndex).mat = null then
+      hits(nearestHitIndex).mat := g_scn.materials(hits(nearestHitIndex).matId);
+    end if;
+
+    return hits(nearestHitIndex);
+
+  end FindClosestHit;
 
 
 

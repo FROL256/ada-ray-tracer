@@ -108,8 +108,8 @@ package Vector_Math is
 
     -- 'global' variables
     --
-    time            : integer := 1;            -- Let us define a counter called time for the global time of the process which counts the number of accepted mutations
-    large_step      : integer := 1;            -- variable large_step is 1 if a large step is made and zero otherwise
+    time            : integer := 1;      -- Let us define a counter called time for the global time of the process which counts the number of accepted mutations
+    large_step      : integer := 1;      -- variable large_step is 1 if a large step is made and zero otherwise
     large_step_time : integer := 1;      -- The time of the last accepted large step is stored in variable large_step_time
 
   end record;

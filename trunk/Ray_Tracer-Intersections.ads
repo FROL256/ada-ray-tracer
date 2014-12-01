@@ -8,11 +8,6 @@ use Ray_Tracer;
 private package Ray_Tracer.Intersections is
 
 
-  function IntersectPlaneXZ(r: Ray) return Hit;
-  function IntersectAllSpheres(r: Ray; a_spheres : Spheres_Array_Ptr) return Hit;
-  function IntersectCornellBox(r: Ray; boxData : CornellBox) return Hit;
-  function IntersectFlatLight(r: Ray; lightGeom : FlatLight) return Hit;
-  function FindClosestHit(r: Ray) return Hit;
 
 private
 
@@ -21,6 +16,7 @@ private
 	      	      is_hit     => false,
 	      	      t          => infinity,
                       mat        => null,
+                      matId      => 0,
 	              tx         => 0.0,
                       ty         => 0.0,
                       normal     => (0.0, 1.0, 0.0)

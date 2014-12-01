@@ -4,14 +4,15 @@ with Ada.Assertions;
 with Vector_Math;
 with Materials;
 with Lights;
+with Geometry;
 with Ada.Unchecked_Deallocation;
-limited private with Ray_Tracer.Integrators; -- just want to put Integrators to another package
 
 use Interfaces;
 use Vector_Math;
 use Materials;
 use Lights;
 use Ada.Assertions;
+use Geometry;
 
 package Ray_Tracer is
 
@@ -66,15 +67,6 @@ private
     Blue  : float range 0.0..1.0;
   end record;
 
-  type Hit;
-
-
-  type Ray is record
-    origin    : float3  := (0.0, 0.0, 0.0);
-    direction : float3  := (0.0, 0.0, 1.0);
-    x,y       : integer := 0;    -- needed for MLT
-  end record;
-
   type Sphere is record
     pos : float3;
     r   : float;
@@ -86,14 +78,6 @@ private
     max : float3;
   end record;
 
-  type FlatLight is record
-    boxMin    : float3;
-    boxMax    : float3;
-    normal    : float3;
-    intensity : float3;
-    surfaceArea : float;
-  end record;
-
   type Camera is record
     pos    : float3;
     lookAt : float3;
@@ -101,37 +85,6 @@ private
     matrix : float4x4;
   end record;
 
-  type Cornell_Material_Indices is array (0..5) of integer;
-  type Cornell_Normals is array (0..5) of float3;
-
-  type CornellBox is record
-    mat_indices : Cornell_Material_Indices;
-    normals     : Cornell_Normals;
-    box 	: AABB;
-  end record;
-
-  type Primitive is (Plane_TypeId, Sphere_TypeId, Triangle_TypeId, Quad_TypeId);
-
-  type Hit(prim_type : Primitive := Plane_TypeId) is record
-
-    is_hit : boolean := false;
-    t      : float   := infinity;
-    normal : float3  := (0.0, 0.0, 0.0);
-    mat    : MaterialRef  := null;
-    tx,ty  : float        := 0.0;
-    prim_index : integer  := -1;
-
-  end record;
-
-  type Shadow_Hit is record
-    percentageCloser : float3  := (0.0, 0.0, 0.0);
-    in_shadow        : boolean := true;
-    shadowRay        : Ray;
-  end record;
-
-
-  type Spheres_Array is array (Integer range <>) of Sphere;
-  type Spheres_Array_Ptr is access Spheres_Array;
 
   function ColorToUnsigned_32(c: Color) return Unsigned_32;
   function ToneMapping(v : float3) return Color;
@@ -173,8 +126,7 @@ private
   procedure delete is new Ada.Unchecked_Deallocation(Object => Path_Trace_Thread, Name => Path_Trace_Thread_Ptr);
 
 
-
-
+  function FindClosestHit(r: Ray) return Hit;
 
   -- very lite scene description
   --

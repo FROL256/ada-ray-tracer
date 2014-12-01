@@ -5,16 +5,12 @@ with Materials;
 with Lights;
 with Ada.Exceptions;
 with Ray_Tracer;
-with Ray_Tracer.Intersections;
-
 
 use Ada.Numerics;
 use Ada.Text_IO;
 use Materials;
 use Lights;
 use Ray_Tracer;
-use Ray_Tracer.Intersections;
-
 
 package body Ray_Tracer.Integrators is
 
@@ -84,7 +80,7 @@ package body Ray_Tracer.Integrators is
       return (0.0, 0.0, 0.0);
     end if;
 
-    h := Intersections.FindClosestHit(r);
+    h := FindClosestHit(r);
 
     if not h.is_hit then
       return (0.0, 0.0, 0.0);
@@ -135,7 +131,7 @@ package body Ray_Tracer.Integrators is
       return (0.0, 0.0, 0.0);
     end if;
 
-    h := Intersections.FindClosestHit(r);
+    h := FindClosestHit(r);
 
     if not h.is_hit then
       return (0.0, 0.0, 0.0);
@@ -197,7 +193,7 @@ package body Ray_Tracer.Integrators is
       return (0.0, 0.0, 0.0);
     end if;
 
-    h := Intersections.FindClosestHit(r);
+    h := FindClosestHit(r);
 
     if not h.is_hit then
       return (0.0, 0.0, 0.0);

@@ -140,6 +140,8 @@ private
     --lights    : Lights_Array;
     spheres   : Spheres_Array_Ptr;
 
+    mymesh : Mesh;
+
   end record;
 
   g_scn : Scene;

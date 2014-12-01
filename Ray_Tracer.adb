@@ -137,7 +137,7 @@ package body Ray_Tracer is
 
 
   function FindClosestHit(r: Ray) return Hit is
-    hits : array (1..3) of Hit;
+    hits : array (1..4) of Hit;
     nearestHitIndex : integer range hits'First..hits'Last := 1;
     nearestHitDist  : float := infinity;
   begin
@@ -148,6 +148,8 @@ package body Ray_Tracer is
     if GetShapeType(g_lightRef) = Light_Shape_Rect then
       hits(3) := IntersectFlatLight(r, g_light, g_scn.materials(4));
     end if;
+
+    hits(4) := IntersectMeshBF(r, g_scn.mymesh);
 
     for i in hits'First .. hits'Last loop
 
@@ -368,6 +370,17 @@ package body Ray_Tracer is
     g_scn.spheres(1).pos := (1.4,1.0,3.0);
     g_scn.spheres(1).r   := 1.0;
 
+    declare
+      mrot  : float4x4 := RotationMatrix(-PI/3.0, (0.0, 1.0, 0.0));
+      mtans : float4x4 := IdentityMatrix;
+    begin
+
+      --SetCol(mtans, 3, (-1.0, -1.0, -1.0, 1.0));
+      SetRow(mtans, 3, (-1.0, -1.5, -1.0, 1.0));
+
+      CreatePrism(g_scn.mymesh, mrot*mtans, size =>  1.0, angle => PI/4.0, matId => 3);
+
+    end;
 
     -- setup camera
     --

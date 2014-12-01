@@ -97,16 +97,28 @@ package Geometry is
     vert_tex_coords : Float2_Array_Ptr   := null;
     triangles       : Triangle_Array_Ptr := null;
     material_ids    : MaterialsId_Ptr    := null;
+    bbox            : AABB;
   end record;
 
   procedure CreatePrism(self: out Mesh; mTransform : in float4x4; size,angle : in float; matId : in integer);
 
+  type LiteGeomHit is record
+    is_hit : boolean := false;
+    tmin   : float   := 0.0;
+    tmax   : float   := 0.0;
+    u,v    : float   := 0.0;
+  end record;
+
+
+  function IntersectBox(r: Ray; box : AABB) return LiteGeomHit;
+  function IntersectTriangle(r: Ray; A : float3; B : float3; C : float3; t_min : float; t_max : float) return LiteGeomHit;
 
   function IntersectPlaneXZ   (r: Ray; planeMat : MaterialRef) return Hit;
   function IntersectAllSpheres(r: Ray; a_spheres : Spheres_Array_Ptr) return Hit;
   function IntersectFlatLight (r: Ray; lightGeom : FlatLight; lMat : MaterialRef) return Hit;
   function IntersectCornellBox(r: Ray; boxData : CornellBox) return Hit;
 
+  function IntersectMeshBF(r: Ray; meshGeom : Mesh) return Hit;
 
   private
 

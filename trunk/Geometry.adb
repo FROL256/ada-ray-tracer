@@ -122,28 +122,25 @@ package body Geometry is
   end IntersectFlatLight;
 
 
-  function IntersectCornellBox(r: Ray; boxData : CornellBox) return Hit is
-    tmin,tmax,tminy,tmaxy,tminz,tmaxz : float := 0.0;
-    imin,imax,iminy,imaxy,iminz,imaxz : integer := 0;
+  function IntersectBox(r: Ray; box : AABB) return LiteGeomHit is
+    tmin,tmax : float := 0.0;
     lo,hi,lo1,hi1,lo2,hi2 : float;
-    p : float3;
-    planeId : integer := 4;
     inv_dir_x,inv_dir_y,inv_dir_z : float;
-    eps : float := 1.0e-5;
+    res : LiteGeomHit;
   begin
 
     inv_dir_x := 1.0/r.direction.x;
     inv_dir_y := 1.0/r.direction.y;
     inv_dir_z := 1.0/r.direction.z;
 
-    lo  := (boxData.box.max.x - r.origin.x)*inv_dir_x;
-    hi  := (boxData.box.min.x - r.origin.x)*inv_dir_x;
+    lo  := (box.max.x - r.origin.x)*inv_dir_x;
+    hi  := (box.min.x - r.origin.x)*inv_dir_x;
 
-    lo1 := (boxData.box.max.y - r.origin.y)*inv_dir_y;
-    hi1 := (boxData.box.min.y - r.origin.y)*inv_dir_y;
+    lo1 := (box.max.y - r.origin.y)*inv_dir_y;
+    hi1 := (box.min.y - r.origin.y)*inv_dir_y;
 
-    lo2 := (boxData.box.max.z - r.origin.z)*inv_dir_z;
-    hi2 := (boxData.box.min.z - r.origin.z)*inv_dir_z;
+    lo2 := (box.max.z - r.origin.z)*inv_dir_z;
+    hi2 := (box.min.z - r.origin.z)*inv_dir_z;
 
     tmin := min(lo,hi);
     tmax := max(lo,hi);
@@ -154,9 +151,26 @@ package body Geometry is
     tmin := max(tmin, min(lo2,hi2));
     tmax := min(tmax, max(lo2,hi2));
 
-    if (tmax > 0.0) and (tmin <= tmax) then
+    res.tmin   := tmin;
+    res.tmax   := tmax;
+    res.is_hit := (tmax > 0.0) and (tmin <= tmax);
 
-      p := r.origin + tmax*r.direction;
+    return res;
+
+  end IntersectBox;
+
+  function IntersectCornellBox(r: Ray; boxData : CornellBox) return Hit is
+    eps     : float := 1.0e-5;
+    p       : float3;
+    tmpHit  : LiteGeomHit;
+    planeId : integer := 0;
+  begin
+
+    tmpHit := IntersectBox(r, boxData.box);
+
+    if tmpHit.is_hit then
+
+      p := r.origin + tmpHit.tmax*r.direction;
 
       if abs(p.x - boxData.box.min.x) < eps then planeId := 0; end if;
       if abs(p.x - boxData.box.max.x) < eps then planeId := 1; end if;
@@ -170,7 +184,7 @@ package body Geometry is
       return( prim_type  => Plane_TypeId,
               prim_index => planeId,
 	      is_hit     => not (planeId = 5),
-	      t          => tmax,
+	      t          => tmpHit.tmax,
               mat        => null, --g_scn.materials(boxData.mat_indices(planeId)),
               matId      => boxData.mat_indices(planeId),
               normal     => boxData.normals(planeId),
@@ -183,6 +197,87 @@ package body Geometry is
 
   end IntersectCornellBox;
 
+  function IntersectTriangle(r: Ray; A : float3; B : float3; C : float3; t_min : float; t_max : float) return LiteGeomHit is
+    res : LiteGeomHit;
+    edge1, edge2, pvec, qvec, tvec : float3;
+    invDet,u,v,t : float;
+  begin
+
+    edge1  := B - A;
+    edge2  := C - A;
+    pvec   := cross(r.direction, edge2);
+    tvec   := r.origin - A;
+    qvec   := cross(tvec, edge1);
+    invDet := 1.0 / dot(edge1, pvec);
+
+    v := dot(tvec, pvec)*invDet;
+    u := dot(qvec, r.direction)*invDet;
+    t := dot(edge2, qvec)*invDet;
+
+    if (v > 0.0 and u > 0.0 and u + v < 1.0 and t > t_min and t < t_max) then
+
+      res.u      := u;
+      res.v      := v;
+      res.tmin   := t;
+      res.tmax   := t + 1.0e-6;
+      res.is_hit := true;
+
+    end if;
+
+    return res;
+
+  end IntersectTriangle;
+
+
+  function IntersectMeshBF(r: Ray; meshGeom : Mesh) return Hit is
+     tmpHit, nearestHit : LiteGeomHit;
+     triInd : Triangle;
+     A,B,C  : float3;
+     nearestTriId : integer := 0;
+  begin
+
+    tmpHit := IntersectBox(r, meshGeom.bbox);
+
+    if tmpHit.is_hit then
+
+      nearestHit.tmin   := 0.0;
+      nearestHit.is_hit := false;
+
+      for i in meshGeom.triangles'First .. meshGeom.triangles'Last loop
+
+        triInd := meshGeom.triangles(i);
+
+        A := meshGeom.vert_positions(triInd.A_index);
+        B := meshGeom.vert_positions(triInd.B_index);
+        C := meshGeom.vert_positions(triInd.C_index);
+
+        tmpHit := IntersectTriangle(r,A,B,C,nearestHit.tmin,INFINITY);
+
+        if tmpHit.is_hit then
+          nearestHit   := tmpHit;
+          nearestTriId := i;
+        end if;
+
+      end loop;
+
+      triInd := meshGeom.triangles(nearestTriId);
+
+      return( prim_type  => Triangle_TypeId,
+              prim_index => nearestTriId,
+	      is_hit     => nearestHit.is_hit,
+	      t          => tmpHit.tmin,
+              mat        => null,
+              matId      => meshGeom.material_ids(nearestTriId),
+              normal     => (1.0 - nearestHit.u - nearestHit.v)*meshGeom.vert_normals(triInd.A_index) + nearestHit.v*meshGeom.vert_normals(triInd.B_index) + nearestHit.u*meshGeom.vert_normals(triInd.C_index),
+	      tx         => (1.0 - nearestHit.u - nearestHit.v)*meshGeom.vert_tex_coords(triInd.A_index).x + nearestHit.v*meshGeom.vert_tex_coords(triInd.B_index).x + nearestHit.u*meshGeom.vert_tex_coords(triInd.C_index).x,
+              ty         => (1.0 - nearestHit.u - nearestHit.v)*meshGeom.vert_tex_coords(triInd.A_index).y + nearestHit.v*meshGeom.vert_tex_coords(triInd.B_index).y + nearestHit.u*meshGeom.vert_tex_coords(triInd.C_index).y
+	    );
+
+    else
+      return null_hit;
+    end if;
+
+  end IntersectMeshBF;
 
 
 
@@ -267,8 +362,8 @@ package body Geometry is
      --
      self.vert_positions(0) := (leftBound, 0.0, frontBound);
      self.vert_positions(1) := (leftBound, 0.0, backBound);
-     self.vert_positions(2) := (0.0 ,h,backBound);
-     self.vert_positions(3) := (0.0 ,h,frontBound);
+     self.vert_positions(2) := (0.0,h,backBound);
+     self.vert_positions(3) := (0.0,h,frontBound);
 
      self.triangles(0).A_index := 0;
      self.triangles(0).B_index := 1;
@@ -332,16 +427,31 @@ package body Geometry is
 
      --ComputeFlatNormals(self);
 
-     -- transform geometry with matrix
+
+     self.bbox.min := (INFINITY, INFINITY, INFINITY);
+     self.bbox.max := (-INFINITY, -INFINITY, -INFINITY);
+
+     -- transform geometry with matrix and find bbox
      --
      for i in self.vert_positions'First..self.vert_positions'Last loop
+
        self.vert_positions(i) := mTransform*self.vert_positions(i);
+
+       self.bbox.min.x := min(self.bbox.min.x, self.vert_positions(i).x);
+       self.bbox.min.y := min(self.bbox.min.y, self.vert_positions(i).y);
+       self.bbox.min.z := min(self.bbox.min.z, self.vert_positions(i).z);
+
+       self.bbox.max.x := max(self.bbox.max.x, self.vert_positions(i).x);
+       self.bbox.max.y := max(self.bbox.max.y, self.vert_positions(i).y);
+       self.bbox.max.z := max(self.bbox.max.z, self.vert_positions(i).z);
+
        --self.vert_normals(i)   := TransformNormal(mTransform, self.vert_normals(i));
+
      end loop;
 
+     ComputeFlatNormals(self);
 
-   end;
-
+   end CreatePrism;
 
 end Geometry;
 

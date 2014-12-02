@@ -214,6 +214,8 @@ package body Geometry is
     u := dot(qvec, r.direction)*invDet;
     t := dot(edge2, qvec)*invDet;
 
+    res.is_hit := false;
+
     if (v > 0.0 and u > 0.0 and u + v < 1.0 and t > t_min and t < t_max) then
 
       res.u      := u;
@@ -240,7 +242,8 @@ package body Geometry is
 
     if tmpHit.is_hit then
 
-      nearestHit.tmin   := 0.0;
+      nearestHit.tmin   := tmpHit.tmin;
+      nearestHit.tmax   := tmpHit.tmax;
       nearestHit.is_hit := false;
 
       for i in meshGeom.triangles'First .. meshGeom.triangles'Last loop
@@ -251,7 +254,7 @@ package body Geometry is
         B := meshGeom.vert_positions(triInd.B_index);
         C := meshGeom.vert_positions(triInd.C_index);
 
-        tmpHit := IntersectTriangle(r,A,B,C,nearestHit.tmin,INFINITY);
+        tmpHit := IntersectTriangle(r,A,B,C,nearestHit.tmin,nearestHit.tmax);
 
         if tmpHit.is_hit then
           nearestHit   := tmpHit;
@@ -265,9 +268,9 @@ package body Geometry is
       return( prim_type  => Triangle_TypeId,
               prim_index => nearestTriId,
 	      is_hit     => nearestHit.is_hit,
-	      t          => tmpHit.tmin,
+	      t          => nearestHit.tmin,
               mat        => null,
-              matId      => meshGeom.material_ids(nearestTriId),
+              matId      => 2, --meshGeom.material_ids(nearestTriId), -- (-1.0)*normalize(cross(A-B, A-C)),
               normal     => (1.0 - nearestHit.u - nearestHit.v)*meshGeom.vert_normals(triInd.A_index) + nearestHit.v*meshGeom.vert_normals(triInd.B_index) + nearestHit.u*meshGeom.vert_normals(triInd.C_index),
 	      tx         => (1.0 - nearestHit.u - nearestHit.v)*meshGeom.vert_tex_coords(triInd.A_index).x + nearestHit.v*meshGeom.vert_tex_coords(triInd.B_index).x + nearestHit.u*meshGeom.vert_tex_coords(triInd.C_index).x,
               ty         => (1.0 - nearestHit.u - nearestHit.v)*meshGeom.vert_tex_coords(triInd.A_index).y + nearestHit.v*meshGeom.vert_tex_coords(triInd.B_index).y + nearestHit.u*meshGeom.vert_tex_coords(triInd.C_index).y

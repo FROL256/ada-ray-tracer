@@ -371,14 +371,14 @@ package body Ray_Tracer is
     g_scn.spheres(1).r   := 1.0;
 
     declare
-      mrot  : float4x4 := RotationMatrix(-PI/3.0, (0.0, 1.0, 0.0));
+      mrot  : float4x4 := RotationMatrix(PI/3.0, (0.0, 1.0, 0.0));
       mtans : float4x4 := IdentityMatrix;
     begin
 
-      --SetCol(mtans, 3, (-1.0, -1.0, -1.0, 1.0));
-      SetRow(mtans, 3, (-1.0, -1.5, -1.0, 1.0));
+      --SetCol(mtans, 3, (0.0, 0.0, -1.0, 1.0));
+      --SetRow(mtans, 3, (0.0, 0.0, 0.0, 1.0)); -- mtans*mrot
 
-      CreatePrism(g_scn.mymesh, mrot*mtans, size =>  1.0, angle => PI/4.0, matId => 3);
+      CreatePrism(g_scn.mymesh, IdentityMatrix, size => 0.75, angle => PI/4.0, matId => 3);
 
     end;
 

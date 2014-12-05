@@ -476,6 +476,9 @@ package body Geometry is
      S         : Stream_Access;
      header    : VSGF_Header;
 
+     temp4  : float4 := (0.0, 0.0, 0.0, 0.0);
+     temp2  : float2 := (0.0, 0.0);
+
    begin
 
      Open(File => VSGF_File,
@@ -487,20 +490,57 @@ package body Geometry is
 
      VSGF_Header'Read(S, header);
 
-
-     Put("load vsgf file: ");
+     Put("load vsgf file : ");
      Put_Line(a_fileName);
-     Put("sizeInBytes: ");
+     Put("sizeInBytes    :");
      Put_Line(Long_Long_Integer'Image(header.fileSizeInBytes));
-     Put("vertices: ");
+     Put("vertices       :");
      Put_Line(Integer'Image(header.verticesNum));
-     Put("triangles: ");
+     Put("triangles      :");
      Put_Line(Integer'Image(header.indicesNum/3));
-
+     Put("materials      :");
+     Put_Line(Integer'Image(header.materialsNum));
 
      FreeData(self);
+     AllocData(self, header.verticesNum, header.indicesNum);
 
+     -- read positions
+     --
+     for i in 0 .. header.verticesNum - 1 loop
+       float4'Read(S, temp4);
+       self.vert_positions(i).x := temp4.x;
+       self.vert_positions(i).y := temp4.y;
+       self.vert_positions(i).z := temp4.z;
+     end loop;
 
+     -- read normals
+     --
+     for i in 0 .. header.verticesNum - 1 loop
+       float4'Read(S, temp4);
+       self.vert_normals(i).x := temp4.x;
+       self.vert_normals(i).y := temp4.y;
+       self.vert_normals(i).z := temp4.z;
+     end loop;
+
+     -- read texcoords
+     --
+     for i in 0 .. header.verticesNum - 1 loop
+       float2'Read(S, temp2);
+       self.vert_tex_coords(i).x := temp2.x;
+       self.vert_tex_coords(i).y := temp2.y;
+     end loop;
+
+     -- read indices
+     --
+     for i in 0 .. (header.indicesNum/3-1) loop
+       Triangle'Read(S, self.triangles(i));
+     end loop;
+
+     -- read material indices
+     --
+     for i in 0 .. (header.indicesNum/3-1) loop
+       integer'Read(S, self.material_ids(i));
+     end loop;
 
      Close(VSGF_File);
 

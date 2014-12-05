@@ -1,9 +1,12 @@
 with Interfaces;
+with Ada.Streams.Stream_IO;
 with Ada.Numerics.Float_Random;
 with Ada.Numerics.Generic_Elementary_Functions;
 with Vector_Math;
 
+
 use Interfaces;
+use Ada.Streams.Stream_IO;
 use Vector_Math;
 
 
@@ -368,13 +371,13 @@ package body Geometry is
      self.vert_positions(2) := (0.0,h,backBound);
      self.vert_positions(3) := (0.0,h,frontBound);
 
-     self.triangles(0).A_index := 0;
-     self.triangles(0).B_index := 1;
+     self.triangles(0).A_index := 1;
+     self.triangles(0).B_index := 0;
      self.triangles(0).C_index := 2;
 
      self.triangles(1).A_index := 0;
-     self.triangles(1).B_index := 2;
-     self.triangles(1).C_index := 3;
+     self.triangles(1).B_index := 3;
+     self.triangles(1).C_index := 2;
 
      --  right frace
      --
@@ -455,6 +458,53 @@ package body Geometry is
      ComputeFlatNormals(self);
 
    end CreatePrism;
+
+   type VSGF_Header is record
+
+     fileSizeInBytes : Long_Long_Integer; -- Unsigned_64
+     verticesNum     : Integer;
+     indicesNum      : Integer;
+     materialsNum    : Integer;
+     flags           : Integer;
+
+   end record;
+
+
+   procedure LoadMeshFromVSGF(self: out Mesh; mTransform : in float4x4; a_fileName : String) is
+
+     VSGF_File : Ada.Streams.Stream_IO.File_Type;
+     S         : Stream_Access;
+     header    : VSGF_Header;
+
+   begin
+
+     Open(File => VSGF_File,
+          Mode => In_File,
+          Name => a_fileName,
+          Form => "");
+
+     S := Stream(VSGF_File);
+
+     VSGF_Header'Read(S, header);
+
+
+     Put("load vsgf file: ");
+     Put_Line(a_fileName);
+     Put("sizeInBytes: ");
+     Put_Line(Long_Long_Integer'Image(header.fileSizeInBytes));
+     Put("vertices: ");
+     Put_Line(Integer'Image(header.verticesNum));
+     Put("triangles: ");
+     Put_Line(Integer'Image(header.indicesNum/3));
+
+
+     FreeData(self);
+
+
+
+     Close(VSGF_File);
+
+   end LoadMeshFromVSGF;
 
 end Geometry;
 

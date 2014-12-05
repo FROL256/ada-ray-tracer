@@ -101,6 +101,7 @@ package Geometry is
   end record;
 
   procedure CreatePrism(self: out Mesh; mTransform : in float4x4; size,angle : in float; matId : in integer);
+  procedure LoadMeshFromVSGF(self: out Mesh; mTransform : in float4x4; a_fileName : String);
 
   type LiteGeomHit is record
     is_hit : boolean := false;

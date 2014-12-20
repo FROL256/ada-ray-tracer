@@ -1,5 +1,4 @@
 
-
 with Interfaces;
 with Ada.Numerics.Float_Random;
 
@@ -18,6 +17,9 @@ generic
   with function "<" (L, R : T)  return Boolean is <>;
   with function ">=" (L, R : T) return Boolean is <>;
   with function "<=" (L, R : T) return Boolean is <>;
+
+  --with function ":="(E2 : float) return T is <>;
+  --with procedure assign(E1 : T; E2 : flost) is <>;
 
 package Generic_Vector_Math is
 

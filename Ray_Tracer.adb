@@ -371,16 +371,18 @@ package body Ray_Tracer is
     g_scn.spheres(1).r   := 1.0;
 
     declare
-      mrot  : float4x4 := RotationMatrix(-PI/4.0, (0.0, 1.0, 0.0));
-      mtans : float4x4 := IdentityMatrix;
+      mrot   : float4x4 := RotationMatrix(-PI/6.0, (0.0, 1.0, 0.0));
+      mscale : float4x4 := IdentityMatrix;
+      mtans  : float4x4 := IdentityMatrix;
     begin
 
-      LoadMeshFromVSGF(g_scn.mymesh, IdentityMatrix, "../data/pyramid.vsgf");
+      SetCol(mtans, 3, (-0.75, 0.1, 3.1, 1.0));
 
-      --SetCol(mtans, 3, (0.0, 1.0, 0.0, 1.0));
-      SetRow(mtans, 3, (-1.0, 0.0, 3.5, 1.0)); -- mtans*mrot
+      mscale(0,0) := 2.0;
+      mscale(1,1) := 2.0;
+      mscale(2,2) := 2.0;
 
-      CreatePrism(g_scn.mymesh, mrot*mtans, size => 0.8, angle => PI/4.0, matId => 3);
+      LoadMeshFromVSGF(g_scn.mymesh, mtans*mrot*mscale, "../data/pyramid.vsgf");
 
     end;
 

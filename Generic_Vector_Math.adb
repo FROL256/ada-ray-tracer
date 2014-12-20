@@ -1,4 +1,5 @@
 with Ada.Numerics.Generic_Elementary_Functions;
+with Ada.Unchecked_Conversion;
 
 use Ada.Numerics;
 --use Ada.Numerics.Aux;
@@ -7,6 +8,13 @@ package body Generic_Vector_Math is
 
   package Float_Functions is new Generic_Elementary_Functions (float);
   use Float_Functions;
+
+  function BitCopyToTypeT is new Ada.Unchecked_Conversion(float, T);
+
+  function ZeroT return T is
+  begin
+    return BitCopyToTypeT(0.0);
+  end ZeroT;
 
   function min (a, b : T) return T is
     begin
@@ -220,16 +228,26 @@ package body Generic_Vector_Math is
     m(3,i) := v.w;
   end SetCol;
 
-
   function "*"(m1 : Matrix4; m2 : Matrix4) return Matrix4 is
     m   : Matrix4;
-    row : vector4;
   begin
 
-    for i in 0..3 loop
-      row := m1*GetCol(m2,i);
-      SetRow(m,i,row);
-    end loop;
+    m(0,0) := m1(0,0) * m2(0,0) + m1(0,1) * m2(1,0) + m1(0,2) * m2(2,0) + m1(0,3) * m2(3,0);
+    m(0,1) := m1(0,0) * m2(0,1) + m1(0,1) * m2(1,1) + m1(0,2) * m2(2,1) + m1(0,3) * m2(3,1);
+    m(0,2) := m1(0,0) * m2(0,2) + m1(0,1) * m2(1,2) + m1(0,2) * m2(2,2) + m1(0,3) * m2(3,2);
+    m(0,3) := m1(0,0) * m2(0,3) + m1(0,1) * m2(1,3) + m1(0,2) * m2(2,3) + m1(0,3) * m2(3,3);
+    m(1,0) := m1(1,0) * m2(0,0) + m1(1,1) * m2(1,0) + m1(1,2) * m2(2,0) + m1(1,3) * m2(3,0);
+    m(1,1) := m1(1,0) * m2(0,1) + m1(1,1) * m2(1,1) + m1(1,2) * m2(2,1) + m1(1,3) * m2(3,1);
+    m(1,2) := m1(1,0) * m2(0,2) + m1(1,1) * m2(1,2) + m1(1,2) * m2(2,2) + m1(1,3) * m2(3,2);
+    m(1,3) := m1(1,0) * m2(0,3) + m1(1,1) * m2(1,3) + m1(1,2) * m2(2,3) + m1(1,3) * m2(3,3);
+    m(2,0) := m1(2,0) * m2(0,0) + m1(2,1) * m2(1,0) + m1(2,2) * m2(2,0) + m1(2,3) * m2(3,0);
+    m(2,1) := m1(2,0) * m2(0,1) + m1(2,1) * m2(1,1) + m1(2,2) * m2(2,1) + m1(2,3) * m2(3,1);
+    m(2,2) := m1(2,0) * m2(0,2) + m1(2,1) * m2(1,2) + m1(2,2) * m2(2,2) + m1(2,3) * m2(3,2);
+    m(2,3) := m1(2,0) * m2(0,3) + m1(2,1) * m2(1,3) + m1(2,2) * m2(2,3) + m1(2,3) * m2(3,3);
+    m(3,0) := m1(3,0) * m2(0,0) + m1(3,1) * m2(1,0) + m1(3,2) * m2(2,0) + m1(3,3) * m2(3,0);
+    m(3,1) := m1(3,0) * m2(0,1) + m1(3,1) * m2(1,1) + m1(3,2) * m2(2,1) + m1(3,3) * m2(3,1);
+    m(3,2) := m1(3,0) * m2(0,2) + m1(3,1) * m2(1,2) + m1(3,2) * m2(2,2) + m1(3,3) * m2(3,2);
+    m(3,3) := m1(3,0) * m2(0,3) + m1(3,1) * m2(1,3) + m1(3,2) * m2(2,3) + m1(3,3) * m2(3,3);
 
     return m;
 

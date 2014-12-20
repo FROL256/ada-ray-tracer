@@ -544,6 +544,23 @@ package body Geometry is
 
      Close(VSGF_File);
 
+
+     for i in self.vert_positions'First..self.vert_positions'Last loop
+
+       self.vert_positions(i) := mTransform*self.vert_positions(i);
+
+       self.bbox.min.x := min(self.bbox.min.x, self.vert_positions(i).x);
+       self.bbox.min.y := min(self.bbox.min.y, self.vert_positions(i).y);
+       self.bbox.min.z := min(self.bbox.min.z, self.vert_positions(i).z);
+
+       self.bbox.max.x := max(self.bbox.max.x, self.vert_positions(i).x);
+       self.bbox.max.y := max(self.bbox.max.y, self.vert_positions(i).y);
+       self.bbox.max.z := max(self.bbox.max.z, self.vert_positions(i).z);
+
+       --self.vert_normals(i)   := TransformNormal(mTransform, self.vert_normals(i));
+
+     end loop;
+
    end LoadMeshFromVSGF;
 
 end Geometry;

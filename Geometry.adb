@@ -322,7 +322,7 @@ package body Geometry is
      self.vert_positions  := new Float3_Array(0..vnum-1);
      self.vert_normals    := new Float3_Array(0..vnum-1);
      self.vert_tex_coords := new Float2_Array(0..vnum-1);
-     self.triangles       := new Triangle_Array(0..inum-1);
+     self.triangles       := new Triangle_Array(0..inum/3-1);
      self.material_ids    := new MaterialsId_Array(0..vnum-1);
    end AllocData;
 

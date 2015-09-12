@@ -27,7 +27,6 @@ package Bitmap is
 private
 
   subtype WORD  is Unsigned_16;
-  subtype LONG  is Long_Integer;
   subtype DWORD is Unsigned_32;
 
   type Pixel is record
@@ -45,14 +44,14 @@ private
 
   type BITMAPINFOHEADER is record
     biSize          : DWORD;
-    biWidth         : LONG;
-    biHeight        : LONG;
+    biWidth         : DWORD;
+    biHeight        : DWORD;
     biPlanes        : WORD;
     biBitCount      : WORD;
     biCompression   : DWORD;
     biSizeImage     : DWORD;
-    biXPelsPerMeter : LONG;
-    biYPelsPerMeter : LONG;
+    biXPelsPerMeter : DWORD;
+    biYPelsPerMeter : DWORD;
     biClrUsed       : DWORD;
     biClrImportant  : DWORD;
   end record;

@@ -47,8 +47,8 @@ package body Bitmap is
     header.bfOffBits   := 14 + 40;
 
     info.biSize          := 40;
-    info.biWidth         := LONG(im.width);
-    info.biHeight        := LONG(im.height);
+    info.biWidth         := DWORD(im.width);
+    info.biHeight        := DWORD(im.height);
     info.biPlanes        := 1;
     info.biBitCount      := 24;
     info.biCompression   := 0;

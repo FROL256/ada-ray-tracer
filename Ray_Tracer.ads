@@ -35,7 +35,7 @@ package Ray_Tracer is
   g_mltMutationsPerPixel : integer := 64;
 
 
-  type ScreenBufferData is array(integer range <>, integer range <>) of Unsigned_32;
+  type ScreenBufferData    is array(integer range <>, integer range <>) of Unsigned_32;
   type ScreenBufferDataRef is access ScreenBufferData;
   screen_buffer : ScreenBufferDataRef := null;
 
@@ -48,11 +48,11 @@ package Ray_Tracer is
   function GetSPP return integer;
 
 
-  type AccumBuff is array (Integer range <>, integer range <>) of float3;
+  type AccumBuff    is array (Integer range <>, integer range <>) of float3;
   type AccumBuffRef is access AccumBuff;
 
 
-  type FloatBuff is array (Integer range <>, integer range <>) of float;
+  type FloatBuff    is array (Integer range <>, integer range <>) of float;
   type FloatBuffRef is access FloatBuff;
 
   -- this is for test MLTCopyImage only

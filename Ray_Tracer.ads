@@ -32,8 +32,6 @@ package Ray_Tracer is
 
   g_gamma    : float := 2.0;
 
-  g_mltMutationsPerPixel : integer := 64;
-
 
   type ScreenBufferData    is array(integer range <>, integer range <>) of Unsigned_32;
   type ScreenBufferDataRef is access ScreenBufferData;

@@ -11,7 +11,7 @@ project ART is
    end Naming;
 
    package Compiler is
-      for Default_Switches ("ada") use ("-O3", "-gnatf", "-gnat12", "-gnatn", "-funroll-loops", "-fPIC", "-fprofile-arcs", "-ftest-coverage");
+      for Default_Switches ("ada") use ("-gnatf", "-gnat12", "-gnatQ");
    end Compiler;
 
    package Pretty_Printer is

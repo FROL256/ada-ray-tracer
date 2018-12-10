@@ -56,6 +56,7 @@ package body Geometry is
 
     for i in a_spheres'First .. a_spheres'Last loop
 
+
       k := r.origin - a_spheres(i).pos;
       b := dot(k,r.direction);
       c := dot(k,k) - a_spheres(i).r*a_spheres(i).r;
@@ -130,6 +131,7 @@ package body Geometry is
     lo,hi,lo1,hi1,lo2,hi2 : float;
     inv_dir_x,inv_dir_y,inv_dir_z : float;
     res : LiteGeomHit;
+    --epsilonDiv : constant float := 1.0e-25;
   begin
 
     inv_dir_x := 1.0/r.direction.x;

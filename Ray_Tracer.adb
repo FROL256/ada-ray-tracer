@@ -319,7 +319,7 @@ package body Ray_Tracer is
      else
 
        delete(g_scn.spheres);
-       g_scn.spheres := new Spheres_Array(0..3);
+       g_scn.spheres := new Spheres_Array(0..2);
 
        g_scn.spheres(2).pos := sphPos;
        g_scn.spheres(2).r   := sphRadius;

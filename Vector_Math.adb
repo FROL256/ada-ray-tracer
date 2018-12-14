@@ -170,52 +170,6 @@ package body Vector_Math is
     return l + (h-l)*t;
   end rnd_uniform;
 
-  ---- this function is used for simple random and must not be redefined
-  --
-  function rnd_uniform_simple(gen : RandomGenerator; l,h : float) return float is
-    t: float := 0.0;
-  begin
-    t := Ada.Numerics.Float_Random.Random(Gen => gen.agen);
-    return l + (h-l)*t;
-  end rnd_uniform_simple;
-
-  ----
-  --
-  procedure ResetSequenceCounter(gen : in out RandomGenerator) is
-  begin
-    null;
-  end ResetSequenceCounter;
-
-  procedure InitSequence(gen : in out RandomGenerator) is
-  begin
-    null;
-  end InitSequence;
-
-  procedure NextSample(gen           : in out RandomGenerator;
-                       I             : in float;
-                       oldI          : in out float;
-                       totalSamples  : in integer;
-                       contrib       : in float3;
-                       oldsample     : in out MLTSample;
-                       contribsample : out MLTSample) is
-  begin
-    null;
-  end NextSample;
-
-  procedure RestoreSequence(gen : in out RandomGenerator) is
-  begin
-    null;
-  end  RestoreSequence;
-
-  procedure ClearStack(gen : in out RandomGenerator) is
-  begin
-    null;
-  end ClearStack;
-
-  procedure ResetAllModifyCounters(gen : in out RandomGenerator) is
-  begin
-    null;
-  end ResetAllModifyCounters;
 
 
   function GetPerpendicular(a_vec : float3) return float3 is
@@ -242,7 +196,7 @@ package body Vector_Math is
     end if;
 
     return normalize(cross(a_vec, leastPerpendicular));
-    --return normalize(cross(direction, (1.04,2.93,-0.6234)));
+
   end GetPerpendicular;
 
   function MapSampleToCosineDist(r1,r2 : float; direction, normal : float3; power : float) return float3 is

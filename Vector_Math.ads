@@ -114,14 +114,7 @@ package Vector_Math is
 
   end record;
 
-  procedure ResetSequenceCounter(gen : in out RandomGenerator);
-  procedure InitSequence(gen : in out RandomGenerator);
-  procedure RestoreSequence(gen : in out RandomGenerator);
-  procedure ClearStack(gen : in out RandomGenerator);
-  procedure ResetAllModifyCounters(gen : in out RandomGenerator);
-
   function rnd_uniform(gen : access RandomGenerator; l,h : float) return float;
-  function rnd_uniform_simple(gen : RandomGenerator; l,h : float) return float;
 
   function MapSampleToCosineDist(r1,r2 : float; direction, normal : float3; power : float) return float3;
   function MapSampleToCosineDistFixed(r1,r2 : float; direction, normal : float3; power : float) return float3;
@@ -131,14 +124,6 @@ package Vector_Math is
     w       : float   := 0.0;
     x,y     : integer := 0;
   end record;
-
-  procedure NextSample(gen           : in out RandomGenerator;
-                       I             : in float;
-                       oldI          : in out float;
-                       totalSamples  : in integer;
-                       contrib       : in float3;
-                       oldsample     : in out MLTSample;
-                       contribsample : out MLTSample);
 
   type RandRef is access all RandomGenerator'Class;
 

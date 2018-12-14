@@ -232,6 +232,7 @@ package body Geometry is
     res : LiteGeomHit;
     edge1, edge2, pvec, qvec, tvec : float3;
     invDet,u,v,t : float;
+    epsilonDiv : constant float := 1.0e-25;
   begin
 
     edge1  := B - A;
@@ -239,7 +240,7 @@ package body Geometry is
     pvec   := cross(r.direction, edge2);
     tvec   := r.origin - A;
     qvec   := cross(tvec, edge1);
-    invDet := 1.0 / dot(edge1, pvec);
+    invDet := 1.0 / max(dot(edge1, pvec), epsilonDiv);
 
     v := dot(tvec, pvec)*invDet;
     u := dot(qvec, r.direction)*invDet;

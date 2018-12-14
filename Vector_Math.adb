@@ -66,6 +66,9 @@ package body Vector_Math is
   begin
     l_inv := 1.0/sqrt(dot(a,a));
     return (l_inv*a.x, l_inv*a.y, l_inv*a.z);
+  exception
+    when Constraint_Error =>
+    return (0.0, 1.0, 0.0);
   end normalize;
 
   function length(a : float3) return float is

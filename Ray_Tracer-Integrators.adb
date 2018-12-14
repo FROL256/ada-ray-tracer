@@ -230,22 +230,33 @@ package body Ray_Tracer.Integrators is
     --
     declare
 
-      hpos  : float3      := (r.origin + r.direction*h.t);
-      lsam  : ShadowSample := Sample(g_lightRef, self.gen, hpos);
-
-      sdir    : float3 := normalize(lsam.pos - hpos);
-      lgtPdf  : float  := lsam.pdf;
-      bsdfPdf : float  := EvalPDF (h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
-      bxdfVal : float3 := EvalBxDF(h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
-
-      misWeight : float := lgtPdf*lgtPdf/(lgtPdf*lgtPdf + bsdfPdf*bsdfPdf);
+      hpos      : float3;
+      lsam      : ShadowSample;
+      sdir      : float3;
+      lgtPdf    : float;
+      bsdfPdf   : float;
+      bxdfVal   : float3;
+      misWeight : float;
 
     begin
+      
+      hpos    := (r.origin + r.direction*h.t);
+      lsam    := Sample(g_lightRef, self.gen, hpos);
+
+      sdir    := normalize(lsam.pos - hpos);
+      lgtPdf  := lsam.pdf;
+      bsdfPdf := EvalPDF (h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
+      bxdfVal := EvalBxDF(h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
+
+      misWeight := lgtPdf*lgtPdf/(lgtPdf*lgtPdf + bsdfPdf*bsdfPdf);
 
       if not ComputeShadow(hpos, lsam.pos).in_shadow then
         explicitColor := lsam.intensity*bxdfVal*(1.0/max(lgtPdf, epsilonDiv))*misWeight;
       end if;
-
+      
+    exception 
+        when Constraint_Error => 
+        explicitColor := (0.0, 0.0, 0.0);  
     end;
 
     -- pick up next ray

@@ -124,6 +124,9 @@ package body Lights is
     diff : float3 := (b - a);
   begin
     return dot(diff, diff);
+    exception                  -- floating point overflow may happen due to diff.x*diff.x may be too large
+      when Constraint_Error =>
+      return float'Last;
   end DistanceSquared;
 
 
@@ -150,6 +153,9 @@ package body Lights is
   function UniformConePdf(cosThetaMax : float) return float is
   begin
     return 1.0 / (2.0 * M_PI * (1.0 - cosThetaMax));
+    exception
+    when Constraint_Error =>
+    return 0.0;                     -- #NOTE: may be need return 1 ??
   end UniformConePdf;
 
   function RaySphereIntersect(rayPos : float3; rayDir : float3; sphPos : float3; radius : float) return float2 is
@@ -181,6 +187,10 @@ package body Lights is
     end if;
 
     return res;
+
+  exception
+    when Constraint_Error =>
+    return (-infinity,-infinity);
   end RaySphereIntersect;
 
 

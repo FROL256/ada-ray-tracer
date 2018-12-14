@@ -52,6 +52,7 @@ package body Geometry is
     k      : float3;
     is_hit : boolean := false;
     b, c, d, sqrtd : float;
+    finalNormal : float3 := (0.0, 1.0, 0.0);
   begin
 
     for i in a_spheres'First .. a_spheres'Last loop
@@ -83,6 +84,8 @@ package body Geometry is
     is_hit := (min_t > 0.0 and min_t < infinity);
     if not is_hit then
       min_t := 1.0; -- to prevent constraint error
+    else
+      finalNormal := normalize((r.origin + r.direction*min_t) - a_spheres(min_i).pos);
     end if;
 
     return ( prim_type  => Sphere_TypeId,
@@ -91,9 +94,23 @@ package body Geometry is
 	     t          => min_t,
              mat        => a_spheres(min_i).mat,
              matId      => 0, -- not used
-             normal     => normalize((r.origin + r.direction*min_t) - a_spheres(min_i).pos),
+             normal     => finalNormal,
              tx => 0.0, ty => 0.0
-	   );
+            );
+
+  exception
+
+    when Constraint_Error =>
+
+    return ( prim_type  => Sphere_TypeId,
+             prim_index => 0,
+  	     is_hit     => False,
+  	     t          => 1.0,
+             mat        => a_spheres(0).mat,
+             matId      => 0, -- not used
+             normal     => finalNormal,
+             tx => 0.0, ty => 0.0
+            );
 
   end IntersectAllSpheres;
 
@@ -159,6 +176,15 @@ package body Geometry is
     res.tmin   := tmin;
     res.tmax   := tmax;
     res.is_hit := (tmax > 0.0) and (tmin <= tmax);
+
+    return res;
+
+  exception
+
+    when Constraint_Error =>
+    res.tmin   := 0.0;
+    res.tmax   := 0.0;
+    res.is_hit := False;
 
     return res;
 

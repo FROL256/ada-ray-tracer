@@ -51,9 +51,9 @@ package body Ray_Tracer is
     g := c.green*255.0;
     b := c.blue*255.0;
 
-    red := Unsigned_32(r);
+    red   := Unsigned_32(r);
     green := Unsigned_32(g);
-    blue := Unsigned_32 (b);
+    blue  := Unsigned_32 (b);
 
     return red or Shift_Left(green, 8) or Shift_Left(blue, 16);
 
@@ -184,12 +184,9 @@ package body Ray_Tracer is
     -- select integrator
     --
 
-    --tracer := new SimplePathTracer;
+    tracer := new SimplePathTracer;
     --tracer := new PathTracerWithShadowRays;
-    tracer := new PathTracerMIS;
-    --tracer := new MLTCopyImage;
-    --tracer := new MLTSimple;
-    --tracer := new MLTKelmenSimple;
+    --tracer := new PathTracerMIS;
 
     tracer.gen := mygen; -- default simple generator
     tracer.Init;         -- Ada 2005 style virtual function call

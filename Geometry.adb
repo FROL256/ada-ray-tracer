@@ -297,16 +297,24 @@ package body Geometry is
 
       triInd := meshGeom.triangles(nearestTriId);
 
-      return( prim_type  => Triangle_TypeId,
-              prim_index => nearestTriId,
-	      is_hit     => nearestHit.is_hit,
-	      t          => nearestHit.tmin,
-              mat        => null,
-              matId      => 2, --meshGeom.material_ids(nearestTriId), -- (-1.0)*normalize(cross(A-B, A-C)),
-              normal     => (1.0 - nearestHit.u - nearestHit.v)*meshGeom.vert_normals(triInd.A_index) + nearestHit.v*meshGeom.vert_normals(triInd.B_index) + nearestHit.u*meshGeom.vert_normals(triInd.C_index),
-	      tx         => (1.0 - nearestHit.u - nearestHit.v)*meshGeom.vert_tex_coords(triInd.A_index).x + nearestHit.v*meshGeom.vert_tex_coords(triInd.B_index).x + nearestHit.u*meshGeom.vert_tex_coords(triInd.C_index).x,
-              ty         => (1.0 - nearestHit.u - nearestHit.v)*meshGeom.vert_tex_coords(triInd.A_index).y + nearestHit.v*meshGeom.vert_tex_coords(triInd.B_index).y + nearestHit.u*meshGeom.vert_tex_coords(triInd.C_index).y
-	    );
+      declare
+        inorm : float3 := (1.0 - nearestHit.u - nearestHit.v)*meshGeom.vert_normals(triInd.A_index)      + nearestHit.v*meshGeom.vert_normals(triInd.B_index)      + nearestHit.u*meshGeom.vert_normals(triInd.C_index);
+        itx   : float  := (1.0 - nearestHit.u - nearestHit.v)*meshGeom.vert_tex_coords(triInd.A_index).x + nearestHit.v*meshGeom.vert_tex_coords(triInd.B_index).x + nearestHit.u*meshGeom.vert_tex_coords(triInd.C_index).x;
+        ity   : float  := (1.0 - nearestHit.u - nearestHit.v)*meshGeom.vert_tex_coords(triInd.A_index).y + nearestHit.v*meshGeom.vert_tex_coords(triInd.B_index).y + nearestHit.u*meshGeom.vert_tex_coords(triInd.C_index).y;
+      begin
+
+        return( prim_type  => Triangle_TypeId,
+                prim_index => nearestTriId,
+	        is_hit     => nearestHit.is_hit,
+	        t          => nearestHit.tmin,
+                mat        => null,
+                matId      => 2, --meshGeom.material_ids(nearestTriId), -- (-1.0)*normalize(cross(A-B, A-C)),
+                normal     => inorm,
+	        tx         => itx,
+                ty         => ity
+               );
+
+      end;
 
     else
       return null_hit;
@@ -544,8 +552,12 @@ package body Geometry is
 
      -- read normals
      --
+     Put_Line("vsgf bad normals (!!!):");
      for i in 0 .. header.verticesNum - 1 loop
        float4'Read(S, temp4);
+
+       Put("i = "); Put(i'Image); Put("; vn.xyz = "); Put(temp4.x'Image); Put(", "); Put(temp4.y'Image); Put(", "); Put_Line(temp4.z'Image);
+
        self.vert_normals(i).x := temp4.x;
        self.vert_normals(i).y := temp4.y;
        self.vert_normals(i).z := temp4.z;

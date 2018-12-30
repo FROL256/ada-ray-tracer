@@ -86,7 +86,6 @@ private
 
   function ColorToUnsigned_32(c: Color) return Unsigned_32;
   function ToneMapping(v : float3) return Color;
-  function Luminance(c : float3) return float;
 
   pragma Inline (ColorToUnsigned_32);
   pragma Inline (ToneMapping);

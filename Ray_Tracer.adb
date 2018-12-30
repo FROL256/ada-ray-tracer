@@ -17,28 +17,25 @@ package body Ray_Tracer is
 
 
   function ToneMapping(v : float3) return Color is
-    max_val : float;
+    -- max_val : float;
    begin
 
-    max_val := max(v.x, max(v.y, v.z));
-    if max_val > 0.0 then
+    --max_val := max(v.x, max(v.y, v.z));
+    --if max_val > 0.0 then
+    --
+    --  if max_val > 1.0 then
+    --    return (v.x/max_val, v.y/max_val, v.z/max_val);
+    --  else
+    --    return (v.x, v.y, v.z);
+    --  end if;
+    --
+    --else
+    --  return (0.0, 0.0, 0.0);
+    --end if;
 
-      if max_val > 1.0 then
-        return (v.x/max_val, v.y/max_val, v.z/max_val);
-      else
-        return (v.x, v.y, v.z);
-      end if;
-
-    else
-      return (0.0, 0.0, 0.0);
-    end if;
+    return (min(v.x,1.0), min(v.y,1.0), min(v.z,1.0));
 
   end;
-
-  function Luminance(c : float3) return float is
-  begin
-    return c.x*0.299 + c.y*0.587 + c.z*0.114;
-  end Luminance;
 
 
   function ColorToUnsigned_32(c : Color) return Unsigned_32 is

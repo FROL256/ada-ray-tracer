@@ -74,6 +74,7 @@ package body Ray_Tracer.Integrators is
     nextRay : Ray := r;
     --rayDeep : integer := g_max_depth - recursion_level;
     --pabsorb : float   := 1.0 - 1.0/(float(rayDeep)*0.25 + 1.0); -- for russian roulette
+    cosTheta : float;
   begin
 
     if recursion_level = 0 then
@@ -100,14 +101,15 @@ package body Ray_Tracer.Integrators is
     --  return (0.0, 0.0, 0.0);
     --end if;
 
-    matSam  := SampleAndEvalBxDF(h.mat, self.gen, r.direction, h.normal, tx => h.tx, ty => h.ty);
-    bxdfVal := matSam.color * (1.0/max(matSam.pdf, epsilonDiv));
+    matSam   := SampleAndEvalBxDF(h.mat, self.gen, r.direction, h.normal, tx => h.tx, ty => h.ty);
+    bxdfVal  := matSam.color * (1.0/max(matSam.pdf, epsilonDiv));
+    cosTheta := dot(matSam.direction, h.normal);
 
     nextRay.origin    := r.origin + r.direction*h.t;
     nextRay.direction := matSam.direction;
-    nextRay.origin    := nextRay.origin + sign(dot(nextRay.direction, h.normal))*h.normal*epsilon; -- add small offset to ray position
+    nextRay.origin    := nextRay.origin + sign(cosTheta)*h.normal*epsilon; -- add small offset to ray position
 
-    return bxdfVal*self.PathTrace(nextRay, matSam, recursion_level-1); -- *(1.0/(1.0-pabsorb));
+    return abs(cosTheta)*bxdfVal*self.PathTrace(nextRay, matSam, recursion_level-1); -- *(1.0/(1.0-pabsorb));
 
   end PathTrace;
 
@@ -121,10 +123,11 @@ package body Ray_Tracer.Integrators is
 
   function PathTrace(self : PathTracerWithShadowRays; r : Ray; prevSample : MatSample; recursion_level : Integer) return float3 is
     explicitColor : float3 := (0.0, 0.0, 0.0);
-    bxdfVal : float3;
-    h : Hit;
-    nextRay : Ray := r;
-    matSam  : MatSample;
+    bxdfVal  : float3;
+    h        : Hit;
+    nextRay  : Ray := r;
+    matSam   : MatSample;
+    cosTheta : float;
   begin
 
     if recursion_level = 0 then
@@ -145,16 +148,19 @@ package body Ray_Tracer.Integrators is
     --
     declare
 
-      hpos    : float3       := (r.origin + r.direction*h.t);      
-      lsam    : ShadowSample := Sample(g_lightRef, self.gen, hpos);
-      sdir    : float3       := normalize(lsam.pos - hpos);
-
-      bxdfVal : float3       := EvalBxDF(h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
-
+      hpos      : float3       := (r.origin + r.direction*h.t);      
+      lsam      : ShadowSample := Sample(g_lightRef, self.gen, hpos);
+      sdir      : float3       := normalize(lsam.pos - hpos);
+     
+      bxdfVal   : float3;
+      cosTheta1 : float;
+      
     begin
 
       if not ComputeShadow(hpos, lsam.pos).in_shadow then
-        explicitColor := lsam.intensity*bxdfVal*(1.0/max(lsam.pdf, epsilonDiv));
+        bxdfVal       := EvalBxDF(h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
+        cosTheta1     := max(dot(sdir, h.normal), 0.0);
+        explicitColor := cosTheta1*lsam.intensity*bxdfVal*(1.0/max(lsam.pdf, epsilonDiv));
       end if;
 
     end;
@@ -162,14 +168,15 @@ package body Ray_Tracer.Integrators is
 
     -- pick up next ray
     --
-    matSam  := SampleAndEvalBxDF(h.mat, self.gen, r.direction, h.normal, tx => h.tx, ty => h.ty);
-    bxdfVal := matSam.color * (1.0/max(matSam.pdf, epsilonDiv));
+    matSam   := SampleAndEvalBxDF(h.mat, self.gen, r.direction, h.normal, tx => h.tx, ty => h.ty);
+    bxdfVal  := matSam.color * (1.0/max(matSam.pdf, epsilonDiv));
+    cosTheta := dot(matSam.direction, h.normal);
 
     nextRay.origin    := r.origin + r.direction*h.t;
     nextRay.direction := matSam.direction;
-    nextRay.origin    := nextRay.origin + sign(dot(nextRay.direction, h.normal))*h.normal*epsilon; -- add small offset to ray position
+    nextRay.origin    := nextRay.origin + sign(cosTheta)*h.normal*epsilon; -- add small offset to ray position
 
-    return explicitColor + bxdfVal*self.PathTrace(nextRay, matSam, recursion_level-1);
+    return explicitColor + abs(cosTheta)*bxdfVal*self.PathTrace(nextRay, matSam, recursion_level-1);
 
   end PathTrace;
 
@@ -183,10 +190,11 @@ package body Ray_Tracer.Integrators is
 
   function PathTrace(self : PathTracerMIS; r : Ray; prevSample : MatSample; recursion_level : Integer) return float3 is
     explicitColor : float3 := (0.0, 0.0, 0.0);
-    bxdfVal : float3;
-    h       : Hit;
-    nextRay : Ray := r;
-    matSam  : MatSample;
+    bxdfVal  : float3;
+    h        : Hit;
+    nextRay  : Ray := r;
+    matSam   : MatSample;
+    cosTheta : float;
   begin
 
     if recursion_level = 0 then
@@ -237,6 +245,7 @@ package body Ray_Tracer.Integrators is
       bsdfPdf   : float;
       bxdfVal   : float3;
       misWeight : float;
+      cosTheta1 : float;
 
     begin
       
@@ -245,13 +254,18 @@ package body Ray_Tracer.Integrators is
 
       sdir    := normalize(lsam.pos - hpos);
       lgtPdf  := lsam.pdf;
-      bsdfPdf := EvalPDF (h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
-      bxdfVal := EvalBxDF(h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
-
-      misWeight := lgtPdf*lgtPdf/(lgtPdf*lgtPdf + bsdfPdf*bsdfPdf);
 
       if not ComputeShadow(hpos, lsam.pos).in_shadow then
-        explicitColor := lsam.intensity*bxdfVal*(1.0/max(lgtPdf, epsilonDiv))*misWeight;
+      
+        bsdfPdf   := EvalPDF (h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
+        bxdfVal   := EvalBxDF(h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
+      
+        cosTheta1 := max(dot(sdir, h.normal), 0.0);
+        misWeight := lgtPdf*lgtPdf/(lgtPdf*lgtPdf + bsdfPdf*bsdfPdf);
+      
+        explicitColor := lsam.intensity*cosTheta1*bxdfVal*(1.0/max(lgtPdf, epsilonDiv))*misWeight;
+      else
+        explicitColor := (0.0, 0.0, 0.0);  
       end if;
       
     exception 
@@ -261,20 +275,17 @@ package body Ray_Tracer.Integrators is
 
     -- pick up next ray
     --
-    matSam  := SampleAndEvalBxDF(h.mat, self.gen, r.direction, h.normal, tx => h.tx, ty => h.ty);
-    bxdfVal := matSam.color * (1.0/max(matSam.pdf, epsilonDiv));
+    matSam   := SampleAndEvalBxDF(h.mat, self.gen, r.direction, h.normal, tx => h.tx, ty => h.ty);
+    bxdfVal  := matSam.color * (1.0/max(matSam.pdf, epsilonDiv));
+    cosTheta := dot(matSam.direction, h.normal);
 
     nextRay.origin    := r.origin + r.direction*h.t;
     nextRay.direction := matSam.direction;
-    nextRay.origin    := nextRay.origin + sign(dot(nextRay.direction, h.normal))*h.normal*epsilon; -- add small offset to ray position
+    nextRay.origin    := nextRay.origin + sign(cosTheta)*h.normal*epsilon; -- add small offset to ray position
 
-    return explicitColor + bxdfVal*self.PathTrace(nextRay, matSam, recursion_level-1);
-
+    return explicitColor + abs(cosTheta)*bxdfVal*self.PathTrace(nextRay, matSam, recursion_level-1);
 
   end PathTrace;
-
-
-  
 
 
 end Ray_Tracer.Integrators;

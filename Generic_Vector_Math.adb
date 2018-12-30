@@ -87,6 +87,8 @@ package body Generic_Vector_Math is
     return res;
   end;
 
+
+
   function "-" (a, b : vector3) return vector3 is
     res : vector3;
   begin

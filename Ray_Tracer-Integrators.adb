@@ -107,7 +107,7 @@ package body Ray_Tracer.Integrators is
     nextRay.direction := matSam.direction;
     nextRay.origin    := nextRay.origin + sign(dot(nextRay.direction, h.normal))*h.normal*epsilon; -- add small offset to ray position
 
-    return bxdfVal*self.PathTrace(nextRay, matSam, recursion_level-1); --*(1.0/(1.0-pabsorb));
+    return bxdfVal*self.PathTrace(nextRay, matSam, recursion_level-1); -- *(1.0/(1.0-pabsorb));
 
   end PathTrace;
 

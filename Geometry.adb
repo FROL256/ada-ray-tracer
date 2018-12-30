@@ -274,8 +274,8 @@ package body Geometry is
 
     if tmpHit.is_hit then
 
-      nearestHit.tmin   := tmpHit.tmin;
-      nearestHit.tmax   := tmpHit.tmax;
+      nearestHit.tmin   := 0.0;       -- tmpHit.tmin; strange bug; does not work when ray start inside bbox
+      nearestHit.tmax   := 1000000.0; -- tmpHit.tmax;  strange bug; does not work when ray start inside bbox
       nearestHit.is_hit := false;
 
       for i in meshGeom.triangles'First .. meshGeom.triangles'Last loop
@@ -298,7 +298,7 @@ package body Geometry is
       triInd := meshGeom.triangles(nearestTriId);
 
       declare
-        inorm : float3 := (1.0 - nearestHit.u - nearestHit.v)*meshGeom.vert_normals(triInd.A_index)      + nearestHit.v*meshGeom.vert_normals(triInd.B_index)      + nearestHit.u*meshGeom.vert_normals(triInd.C_index);
+        inorm : float3 := (1.0 - nearestHit.u - nearestHit.v)*meshGeom.vert_normals   (triInd.A_index)   + nearestHit.v*meshGeom.vert_normals   (triInd.B_index)   + nearestHit.u*meshGeom.vert_normals   (triInd.C_index);
         itx   : float  := (1.0 - nearestHit.u - nearestHit.v)*meshGeom.vert_tex_coords(triInd.A_index).x + nearestHit.v*meshGeom.vert_tex_coords(triInd.B_index).x + nearestHit.u*meshGeom.vert_tex_coords(triInd.C_index).x;
         ity   : float  := (1.0 - nearestHit.u - nearestHit.v)*meshGeom.vert_tex_coords(triInd.A_index).y + nearestHit.v*meshGeom.vert_tex_coords(triInd.B_index).y + nearestHit.u*meshGeom.vert_tex_coords(triInd.C_index).y;
       begin

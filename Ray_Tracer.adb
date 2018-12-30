@@ -184,9 +184,9 @@ package body Ray_Tracer is
     -- select integrator
     --
 
-    tracer := new SimplePathTracer;
+    --tracer := new SimplePathTracer;
     --tracer := new PathTracerWithShadowRays;
-    --tracer := new PathTracerMIS;
+    tracer := new PathTracerMIS;
 
     tracer.gen := mygen; -- default simple generator
     tracer.Init;         -- Ada 2005 style virtual function call
@@ -379,7 +379,7 @@ package body Ray_Tracer is
       mscale(1,1) := 2.0;
       mscale(2,2) := 2.0;
 
-      LoadMeshFromVSGF(g_scn.mymesh, mtans*mrot*mscale, "../data/pyramid.vsgf");
+      LoadMeshFromVSGF(g_scn.mymesh, mtans*mrot*mscale, "../data/pyramid2.vsgf");
 
     end;
 

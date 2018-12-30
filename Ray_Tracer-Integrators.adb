@@ -145,11 +145,11 @@ package body Ray_Tracer.Integrators is
     --
     declare
 
-      hpos    : float3      := (r.origin + r.direction*h.t);      
+      hpos    : float3       := (r.origin + r.direction*h.t);      
       lsam    : ShadowSample := Sample(g_lightRef, self.gen, hpos);
-      sdir    : float3      := normalize(lsam.pos - hpos);
+      sdir    : float3       := normalize(lsam.pos - hpos);
 
-      bxdfVal : float3      := EvalBxDF(h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
+      bxdfVal : float3       := EvalBxDF(h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
 
     begin
 

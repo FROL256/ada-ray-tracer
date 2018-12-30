@@ -552,11 +552,10 @@ package body Geometry is
 
      -- read normals
      --
-     Put_Line("vsgf bad normals (!!!):");
      for i in 0 .. header.verticesNum - 1 loop
        float4'Read(S, temp4);
 
-       Put("i = "); Put(i'Image); Put("; vn.xyz = "); Put(temp4.x'Image); Put(", "); Put(temp4.y'Image); Put(", "); Put_Line(temp4.z'Image);
+       --Put("i = "); Put(i'Image); Put("; vn.xyz = "); Put(temp4.x'Image); Put(", "); Put(temp4.y'Image); Put(", "); Put_Line(temp4.z'Image);
 
        self.vert_normals(i).x := temp4.x;
        self.vert_normals(i).y := temp4.y;
@@ -571,6 +570,15 @@ package body Geometry is
        self.vert_tex_coords(i).y := temp2.y;
      end loop;
 
+     -- read tangents
+     --
+     if header.flags /= 0 then
+       for i in 0 .. header.verticesNum - 1 loop
+         float4'Read(S, temp4);
+       end loop;
+     end if;
+
+
      -- read indices
      --
      for i in 0 .. (header.indicesNum/3-1) loop
@@ -584,7 +592,6 @@ package body Geometry is
      end loop;
 
      Close(VSGF_File);
-
 
      for i in self.vert_positions'First..self.vert_positions'Last loop
 

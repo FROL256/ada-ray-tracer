@@ -369,7 +369,7 @@ package body Materials is
     color    := mat.reflection*(mat.cosPower + 2.0)*0.5*INV_PI*pow(cosTheta, mat.cosPower);
     pdf      := pow(cosTheta, mat.cosPower) * (mat.cosPower + 1.0) * (0.5 * INV_PI);
 
-    cosThetaDiv := 1.0/max(dot(nextDir, normal), G_Eps_Div); -- this cause explicit integrator for NaNs ??? (white dots)
+    cosThetaDiv := 1.0/max(abs(dot(nextDir, normal)), G_Eps_Div); -- #NOTE: abs here! This is important due to negative values could appear
 
     return (color*cosThetaDiv, nextDir, pdf, false);
 

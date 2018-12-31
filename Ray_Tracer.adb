@@ -182,8 +182,8 @@ package body Ray_Tracer is
     --
 
     --tracer := new SimplePathTracer;
-    tracer := new PathTracerWithShadowRays;
-    --tracer := new PathTracerMIS;
+    --tracer := new PathTracerWithShadowRays;
+    tracer := new PathTracerMIS;
 
     tracer.gen := mygen; -- default simple generator
     tracer.Init;         -- Ada 2005 style virtual function call

@@ -326,4 +326,23 @@ package body Vector_Math is
   end RandomCosineVectorOf;
 
 
+  function Is_Finite(x : float) return boolean is
+  begin
+    return (x'Valid) and (x > Float'First) and  (x < Float'Last);
+  end  Is_Finite;
+
+
+  function Flush_To_Zero(v : float3) return float3 is
+
+  begin
+
+    if Is_Finite(v.x) and Is_Finite(v.y) and Is_Finite(v.z) then
+      return v;
+    else
+      return (0.0, 0.0, 0.0);
+    end if;
+
+  end Flush_To_Zero;
+
+
 end Vector_Math;

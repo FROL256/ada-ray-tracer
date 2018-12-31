@@ -160,7 +160,7 @@ package body Ray_Tracer.Integrators is
       if not ComputeShadow(hpos, lsam.pos).in_shadow then
         bxdfVal       := EvalBxDF(h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
         cosTheta1     := max(dot(sdir, h.normal), 0.0);
-        explicitColor := cosTheta1*lsam.intensity*bxdfVal*(1.0/max(lsam.pdf, epsilonDiv));
+        explicitColor := lsam.intensity*(cosTheta1*bxdfVal)*(1.0/max(lsam.pdf, epsilonDiv));
       end if;
 
     end;
@@ -176,7 +176,7 @@ package body Ray_Tracer.Integrators is
     nextRay.direction := matSam.direction;
     nextRay.origin    := nextRay.origin + sign(cosTheta)*h.normal*epsilon; -- add small offset to ray position
 
-    return explicitColor + abs(cosTheta)*bxdfVal*self.PathTrace(nextRay, matSam, recursion_level-1);
+    return explicitColor + (abs(cosTheta)*bxdfVal)*self.PathTrace(nextRay, matSam, recursion_level-1);
 
   end PathTrace;
 
@@ -263,7 +263,7 @@ package body Ray_Tracer.Integrators is
         cosTheta1 := max(dot(sdir, h.normal), 0.0);
         misWeight := lgtPdf*lgtPdf/(lgtPdf*lgtPdf + bsdfPdf*bsdfPdf);
       
-        explicitColor := lsam.intensity*cosTheta1*bxdfVal*(1.0/max(lgtPdf, epsilonDiv))*misWeight;
+        explicitColor := lsam.intensity*(1.0/max(lgtPdf, epsilonDiv))*(cosTheta1*bxdfVal)*misWeight;
       else
         explicitColor := (0.0, 0.0, 0.0);  
       end if;
@@ -283,7 +283,7 @@ package body Ray_Tracer.Integrators is
     nextRay.direction := matSam.direction;
     nextRay.origin    := nextRay.origin + sign(cosTheta)*h.normal*epsilon; -- add small offset to ray position
 
-    return explicitColor + abs(cosTheta)*bxdfVal*self.PathTrace(nextRay, matSam, recursion_level-1);
+    return explicitColor + (abs(cosTheta)*bxdfVal)*self.PathTrace(nextRay, matSam, recursion_level-1);
 
   end PathTrace;
 

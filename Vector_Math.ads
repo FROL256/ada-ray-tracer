@@ -49,6 +49,7 @@ package Vector_Math is
   function "*"(m : float4x4; v : float3) return float3;
   function TransformNormal(m : float4x4; n : float3) return float3;
 
+  function Flush_To_Zero(v : float3) return float3;
 
   IdentityMatrix : constant float4x4 := ((1.0,0.0,0.0,0.0),
                                          (0.0,1.0,0.0,0.0),
@@ -76,8 +77,6 @@ package Vector_Math is
   pragma Inline (min);
   pragma Inline (max);
   pragma Inline (clamp);
-
-
 
 
 

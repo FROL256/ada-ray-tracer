@@ -12,7 +12,7 @@ package body Materials is
   package Float_Functions is new Ada.Numerics.Generic_Elementary_Functions(float);
   use Float_Functions;
 
-   G_Eps_Div : constant float := 1.0e-25;
+   G_Eps_Div : constant float := 1.0e-20;
 
    function TotalInternalReflection(ior: in float; rayDir, normal : float3) return boolean is
      cos_thetai : float;
@@ -369,7 +369,7 @@ package body Materials is
     color    := mat.reflection*(mat.cosPower + 2.0)*0.5*INV_PI*pow(cosTheta, mat.cosPower);
     pdf      := pow(cosTheta, mat.cosPower) * (mat.cosPower + 1.0) * (0.5 * INV_PI);
 
-    cosThetaDiv := 1.0/max(dot(nextDir, normal), G_Eps_Div);
+    cosThetaDiv := 1.0/max(dot(nextDir, normal), G_Eps_Div); -- this cause explicit integrator for NaNs ??? (white dots)
 
     return (color*cosThetaDiv, nextDir, pdf, false);
 

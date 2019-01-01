@@ -43,16 +43,15 @@ begin
    -- main rendering loop
    --
    t1 := Ada.Real_Time.Clock;
+   Split (t1, sec, temp);
 
    while true loop
 
-     Ray_Tracer.MultiThreadedPathTracing;
-
-     t2 := Ada.Real_Time.Clock;
+     Ray_Tracer.Render_Pass;
 
      spp := Ray_Tracer.GetSPP;
 
-     Split (t1, sec, temp);
+     t2 := Ada.Real_Time.Clock;
      Split (t2, sec2, temp);
 
      Put("pass "); Put(integer'Image(counter)); Put(" -");

@@ -69,30 +69,30 @@ package body Ray_Tracer is
   end;
 
 
-  procedure Generate4RayDirections (x, y : in Natural; arr : out RayDirPack) is
+  procedure Generate4RayDirections (x, y : in Natural; res : out RayDirPack) is
     fov : float := Pi / (2.0);
   begin
 
-    arr(0).x := float(x) + 1.0/3.0 - (float(width) / 2.0);
-    arr(0).y := float(y) + 1.0/3.0 - (float(height) / 2.0);
-    arr(0).z := -float (width) / safe_tan (fov / 2.0);
+    res(0).x := float(x) + 1.0/3.0 - (float(width) / 2.0);
+    res(0).y := float(y) + 1.0/3.0 - (float(height) / 2.0);
+    res(0).z := -float (width) / safe_tan (fov / 2.0);
 
-    arr(1).x := float(x) + 1.0/3.0 - (float(width) / 2.0);
-    arr(1).y := float(y) + 2.0/3.0 - (float(height) / 2.0);
-    arr(1).z := -float (width) / safe_tan (fov / 2.0);
+    res(1).x := float(x) + 1.0/3.0 - (float(width) / 2.0);
+    res(1).y := float(y) + 2.0/3.0 - (float(height) / 2.0);
+    res(1).z := -float (width) / safe_tan (fov / 2.0);
 
-    arr(2).x := float(x) + 2.0/3.0 - (float(width) / 2.0);
-    arr(2).y := float(y) + 1.0/3.0 - (float(height) / 2.0);
-    arr(2).z := -float (width) / safe_tan (fov / 2.0);
+    res(2).x := float(x) + 2.0/3.0 - (float(width) / 2.0);
+    res(2).y := float(y) + 1.0/3.0 - (float(height) / 2.0);
+    res(2).z := -float (width) / safe_tan (fov / 2.0);
 
-    arr(3).x := float(x) + 2.0/3.0 - (float(width) / 2.0);
-    arr(3).y := float(y) + 2.0/3.0 - (float(height) / 2.0);
-    arr(3).z := -float (width) / safe_tan (fov / 2.0);
+    res(3).x := float(x) + 2.0/3.0 - (float(width) / 2.0);
+    res(3).y := float(y) + 2.0/3.0 - (float(height) / 2.0);
+    res(3).z := -float (width) / safe_tan (fov / 2.0);
 
-    arr(0) := normalize(arr(0));
-    arr(1) := normalize(arr(1));
-    arr(2) := normalize(arr(2));
-    arr(3) := normalize(arr(3));
+    res(0) := normalize(res(0));
+    res(1) := normalize(res(1));
+    res(2) := normalize(res(2));
+    res(3) := normalize(res(3));
 
   end;
 
@@ -219,7 +219,7 @@ package body Ray_Tracer is
 
   end Path_Trace_Thread;
 
-  procedure MultiThreadedPathTracing is
+  procedure Render_Pass is
     rgb   : float3;
     normC : float;
   begin
@@ -253,8 +253,7 @@ package body Ray_Tracer is
       end loop;
     end loop;
 
-  end MultiThreadedPathTracing;
-
+  end Render_Pass;
 
 
   procedure InitCornellBoxScene is

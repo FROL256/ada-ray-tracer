@@ -36,7 +36,7 @@ package body Ray_Tracer.Integrators is
           if Anti_Aliasing_On then
 
             color := Background_Color;
-            Generate4RayDirections(x,y,rayDirs);
+            Generate4RayDirections(x, y, res => rayDirs);
 
             for i in 0 .. 3 loop
               r.direction := normalize(g_cam.matrix*rayDirs(i));
@@ -44,7 +44,7 @@ package body Ray_Tracer.Integrators is
             end loop;
             
             GNAT.Task_Lock.Lock;
-            colBuff(x,y) := color + colBuff(x,y);                                                              -- #TODO: Atomic_Add instead of Task_Lock ?
+            colBuff(x,y) := color + colBuff(x,y);                                                              -- #TODO: Implement Atomic_Add instead of Task_Lock or use protected type for colBuff
             GNAT.Task_Lock.Unlock;
             
           else
@@ -54,7 +54,7 @@ package body Ray_Tracer.Integrators is
             r.direction  := normalize(g_cam.matrix*r.direction);
             
             GNAT.Task_Lock.Lock;
-            colBuff(x,y) := PathTrace(Integrator'Class(self), r, StartSample, Max_Trace_Depth) + colBuff(x,y); -- #TODO: Atomic_Add instead of Task_Lock ?
+            colBuff(x,y) := PathTrace(Integrator'Class(self), r, StartSample, Max_Trace_Depth) + colBuff(x,y); -- #TODO: Implement Atomic_Add instead of Task_Lock or use protected type for colBuff 
             GNAT.Task_Lock.Unlock;
             
           end if;

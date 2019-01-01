@@ -36,7 +36,7 @@ package Ray_Tracer is
   screen_buffer : ScreenBufferDataRef := null;
 
 
-  procedure MultiThreadedPathTracing;
+  procedure Render_Pass;
 
   procedure ResizeViewport(size_x,size_y : integer);
   procedure InitCornellBoxScene;
@@ -46,6 +46,8 @@ package Ray_Tracer is
 
   type AccumBuff    is array (Integer range <>, integer range <>) of float3;
   type AccumBuffRef is access AccumBuff;
+
+  -- pragma Atomic_Components(AccumBuff); -- atomic access to component of "AccumBuff" cannot be guaranteed
 
 
   type FloatBuff    is array (Integer range <>, integer range <>) of float;
@@ -92,7 +94,7 @@ private
   function ComputeShadow(hit_pos : float3; lpos : float3) return Shadow_Hit;
 
   type RayDirPack is array (0 ..  3) of float3;
-  procedure Generate4RayDirections (x, y : in Natural; arr : out RayDirPack);
+  procedure Generate4RayDirections (x, y : in Natural; res : out RayDirPack);
 
   type IntRef is access integer;
 
@@ -150,8 +152,8 @@ private
   my_cornell_box : CornellBox :=
   (
     mat_indices => (2,3,1,1,8,1),
-    normals => ((1.0,0.0,0.0), (-1.0,0.0,0.0), (0.0,1.0,0.0), (0.0,-1.0,0.0), (0.0,0.0,1.0), (0.0,0.0,-1.0)),
-    box => ((-2.5, 0.0, 0.0),( 2.5, 5.0, 5.0))
+    normals     => ((1.0,0.0,0.0),   (-1.0,0.0,0.0), (0.0,1.0,0.0), (0.0,-1.0,0.0), (0.0,0.0,1.0), (0.0,0.0,-1.0)),
+    box         => ((-2.5, 0.0, 0.0),( 2.5, 5.0, 5.0))
   );
 
 

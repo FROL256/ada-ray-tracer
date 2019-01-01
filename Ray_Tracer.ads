@@ -100,9 +100,9 @@ private
 
   -- multithreaded rendering stuff
   --
-  task type Path_Trace_Thread(threadId : integer) is
+  task type Path_Trace_Thread(threadId : integer; Acc_Buff : AccumBuffRef) is
     entry Resume;
-    entry Finish(accBuff : AccumBuffRef; spp : IntRef);
+    entry Finish(spp : IntRef);
   end Path_Trace_Thread;
 
   type Path_Trace_Thread_Ptr is access Path_Trace_Thread;

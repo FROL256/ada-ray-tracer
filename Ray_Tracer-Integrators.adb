@@ -5,6 +5,7 @@ with Materials;
 with Lights;
 with Ada.Exceptions;
 with Ray_Tracer;
+with GNAT.Task_Lock;
 
 use Ada.Numerics;
 use Ada.Text_IO;
@@ -41,16 +42,21 @@ package body Ray_Tracer.Integrators is
               r.direction := normalize(g_cam.matrix*rayDirs(i));
               color := color + PathTrace(Integrator'Class(self), r, StartSample, Max_Trace_Depth);
             end loop;
-
-            colBuff(x,y) := color*0.25;
-
+            
+            GNAT.Task_Lock.Lock;
+            colBuff(x,y) := color + colBuff(x,y);                                                              -- #TODO: Atomic_Add instead of Task_Lock ?
+            GNAT.Task_Lock.Unlock;
+            
           else
 
             r.x := x; r.y := y;
             r.direction  := EyeRayDirection(x,y);
             r.direction  := normalize(g_cam.matrix*r.direction);
-            colBuff(x,y) := PathTrace(Integrator'Class(self), r, StartSample, Max_Trace_Depth);
-
+            
+            GNAT.Task_Lock.Lock;
+            colBuff(x,y) := PathTrace(Integrator'Class(self), r, StartSample, Max_Trace_Depth) + colBuff(x,y); -- #TODO: Atomic_Add instead of Task_Lock ?
+            GNAT.Task_Lock.Unlock;
+            
           end if;
 
         end loop;

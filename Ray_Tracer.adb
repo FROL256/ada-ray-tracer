@@ -166,16 +166,13 @@ package body Ray_Tracer is
   end FindClosestHit;
 
 
-
   -- multithread stuff
   --
   task body Path_Trace_Thread is
-    colBuff : AccumBuffRef;
     mygen   : RandRef := new RandomGenerator;
     tracer  : Ray_Tracer.Integrators.IntegratorRef := null;
   begin
 
-    colBuff := new AccumBuff(0..width-1, 0..height-1);
     Ada.Numerics.Float_Random.Reset(Gen => mygen.agen, Initiator => threadId*7 + threadId*threadId*13);
 
     -- select integrator
@@ -192,37 +189,22 @@ package body Ray_Tracer is
 
       accept Resume;
 
-      tracer.DoPass(colBuff); -- Ada 2005 style virtual function call
+      tracer.DoPass(Acc_Buff); -- Ada 2005 style virtual function call
 
-      accept Finish (accBuff : AccumBuffRef; spp : IntRef) do
-
-        declare
-          c1 : float := float(spp.all) / (float(spp.all) + 1.0);
-          c2 : float := 1.0 / (float(spp.all) + 1.0);
-          r,g,b: float;
-        begin
-
-          for y in 0 .. height - 1 loop
-            for x in 0 .. width - 1 loop
-              accBuff(x,y) := c1*accBuff(x,y) + c2*colBuff(x,y);
-              r := accBuff(x,y).x; g := accBuff(x,y).y; b := accBuff(x,y).z;
-              r := r ** (1.0/g_gamma); -- gamma correction
-              g := g ** (1.0/g_gamma);
-              b := b ** (1.0/g_gamma);
-              screen_buffer(x,y) := ColorToUnsigned_32(ToneMapping((r,g,b)));
-            end loop;
-          end loop;
-
+      accept Finish (spp : IntRef) do
+      begin
+        if Anti_Aliasing_On then
+          spp.all := spp.all + 4;
+        else
           spp.all := spp.all + 1;
+        end if;
 
-        end;
+      end;
 
       end Finish;
 
     end loop;
 
-    delete(colBuff); colBuff := null;
-    --delete(mygen); mygen := null;
 
     exception
 
@@ -233,18 +215,18 @@ package body Ray_Tracer is
       Put_Line(Ada.Exceptions.Exception_Message(The_Error));
       Put_Line("");
 
-      delete(colBuff);
       --delete(mygen);
 
   end Path_Trace_Thread;
 
   procedure MultiThreadedPathTracing is
-    --threads : array(0..threads_num-1) of Path_Trace_Thread_Ptr;
+    rgb   : float3;
+    normC : float;
   begin
 
-    if not g_threadsCreated then
+    if not g_threadsCreated then                    -- run only once!
       for i in 0..Threads_Num-1 loop
-        g_threads(i) := new Path_Trace_Thread(i+1);
+        g_threads(i) := new Path_Trace_Thread(i+1, g_accBuff);
       end loop;
       g_threadsCreated := true;
     end if;
@@ -254,7 +236,21 @@ package body Ray_Tracer is
     end loop;
 
     for i in 0..Threads_Num-1 loop
-      g_threads(i).Finish(g_accBuff, g_spp);
+      g_threads(i).Finish(g_spp);
+    end loop;
+
+    -- Get acumulated image to LDR screen
+    --
+    normC := 1.0/float(g_spp.all);
+
+    for y in 0 .. height - 1 loop
+      for x in 0 .. width - 1 loop
+         rgb   := g_accBuff(x,y)*normC;
+         rgb.x := rgb.x ** (1.0/g_gamma); -- gamma correction
+         rgb.y := rgb.y ** (1.0/g_gamma);
+         rgb.z := rgb.z ** (1.0/g_gamma);
+         screen_buffer(x,y) := ColorToUnsigned_32(ToneMapping((rgb.x, rgb.y, rgb.z)));
+      end loop;
     end loop;
 
   end MultiThreadedPathTracing;
@@ -417,13 +413,7 @@ package body Ray_Tracer is
 
   function GetSPP return integer is
   begin
-
-   if Anti_Aliasing_On then
-     return g_spp.all*4;
-   else
-     return g_spp.all;
-   end if;
-
+    return g_spp.all;
   end GetSPP;
 
 

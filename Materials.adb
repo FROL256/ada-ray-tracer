@@ -12,7 +12,8 @@ package body Materials is
   package Float_Functions is new Ada.Numerics.Generic_Elementary_Functions(float);
   use Float_Functions;
 
-   G_Eps_Div : constant float := 1.0e-20;
+   Eps_Div : constant float := 1.0e-20;
+   Eps_Cos : constant float := 1.0e-6;
 
    function TotalInternalReflection(ior: in float; rayDir, normal : float3) return boolean is
      cos_thetai : float;
@@ -201,9 +202,13 @@ package body Materials is
   begin
 
     newDir   := RandomCosineVectorOf(gen, normal);
-    cosTheta := max(dot(newDir, normal), 0.0);
-    pdf      := cosTheta*INV_PI;
+    cosTheta := dot(newDir, normal);
+    pdf      := abs(cosTheta)*INV_PI;
     color    := mat.kd*INV_PI;
+
+    if cosTheta < Eps_Cos then -- kill reflection under surface
+      color := (0.0, 0.0, 0.0);
+    end if;
 
     return (color, newDir, pdf, false);
 
@@ -244,7 +249,7 @@ package body Materials is
     cosThetaDiv : float;
   begin
     nextDir     := reflect(ray_dir, normal);
-    cosThetaDiv := 1.0/max(dot(nextDir, normal), G_Eps_Div);
+    cosThetaDiv := 1.0/max(dot(nextDir, normal), Eps_Div);
     return (mat.reflection*cosThetaDiv, nextDir, 1.0, true);
   end SampleAndEvalBxDF;
 
@@ -319,7 +324,7 @@ package body Materials is
 
     end if;
 
-    cosThetaDiv := 1.0/max(abs(dot(nextDirection, normal)), G_Eps_Div);
+    cosThetaDiv := 1.0/max(abs(dot(nextDirection, normal)), Eps_Div);
 
     return (bxdf*cosThetaDiv, nextDirection, 1.0, true);
 
@@ -359,6 +364,7 @@ package body Materials is
     pdf, cosTheta : float;
     nextDir, r    : float3;
     color         : float3;
+    cosThetaGeo   : float;
     cosThetaDiv   : float;
   begin
 
@@ -369,7 +375,12 @@ package body Materials is
     color    := mat.reflection*(mat.cosPower + 2.0)*0.5*INV_PI*pow(cosTheta, mat.cosPower);
     pdf      := pow(cosTheta, mat.cosPower) * (mat.cosPower + 1.0) * (0.5 * INV_PI);
 
-    cosThetaDiv := 1.0/max(abs(dot(nextDir, normal)), G_Eps_Div); -- #NOTE: abs here! This is important due to negative values could appear
+    cosThetaGeo := dot(nextDir, normal);
+    cosThetaDiv := 1.0/max(abs(cosThetaGeo), Eps_Div); -- #NOTE: abs here! This is important due to negative values could appear and brake everything.
+
+    if cosThetaGeo < Eps_Cos then                      -- #NOTE: same thing, kill reflection under surface
+      color := (0.0, 0.0, 0.0);
+    end if;
 
     return (color*cosThetaDiv, nextDir, pdf, false);
 
@@ -382,7 +393,7 @@ package body Materials is
   begin
     r           := reflect((-1.0)*v, n);
     cosTheta    := clamp(dot(l, r), 0.0, M_PI*0.499995);
-    cosThetaDiv := 1.0/max(dot(l, n), G_Eps_Div);
+    cosThetaDiv := 1.0/max(dot(l, n), Eps_Div);
     return mat.reflection*(mat.cosPower + 2.0)*0.5*INV_PI*pow(cosTheta, mat.cosPower)*cosThetaDiv;
   end EvalBxDF;
 

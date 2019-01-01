@@ -19,18 +19,16 @@ package Ray_Tracer is
   width  : Positive := 800;
   height : Positive := 600;
 
-  threads_num : Positive := 8;
+  Threads_Num      : Positive := 8;
+  Anti_Aliasing_On : boolean  := true;
+  Max_Trace_Depth  : Positive := 8;
 
-  compute_shadows  : boolean  := true;
-  anti_aliasing_on : boolean  := true;
-  g_max_depth      : Positive := 8;
+  Background_Color : float3   := (0.0,0.0,0.0);
 
-  background_color : float3   := (0.0,0.0,0.0);
+  G_Epsilon     : constant float := 1.0e-5;  -- small value for geometry offsets
+  G_Epsilon_Div : constant float := 1.0e-20; -- small value for bsdf/pdf divisions
 
-  epsilon    : constant float := 1.0e-5;  -- small value for geometry offsets
-  epsilonDiv : constant float := 1.0e-20; -- small value for bsdf/pdf divisions
-
-  g_gamma    : float := 2.0;
+  g_gamma       : constant float := 2.0;
 
 
   type ScreenBufferData    is array(integer range <>, integer range <>) of Unsigned_32;
@@ -109,7 +107,7 @@ private
 
   type Path_Trace_Thread_Ptr is access Path_Trace_Thread;
 
-  g_threads : array(0..threads_num-1) of Path_Trace_Thread_Ptr;
+  g_threads : array(0..Threads_Num-1) of Path_Trace_Thread_Ptr;
   g_threadsCreated : boolean := false;
 
   ---- instantiate deallocation procedures

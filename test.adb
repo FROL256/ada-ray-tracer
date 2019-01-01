@@ -38,7 +38,7 @@ begin
    Bitmap.Init(image, Ray_Tracer.width, Ray_Tracer.height);
 
    Put_Line("render start");
-   Put("threads_num = "); Put(integer'Image(Ray_Tracer.threads_num)); Put_Line("");
+   Put("threads_num = "); Put(integer'Image(Ray_Tracer.Threads_Num)); Put_Line("");
 
    -- main rendering loop
    --

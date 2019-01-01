@@ -243,17 +243,17 @@ package body Ray_Tracer is
   begin
 
     if not g_threadsCreated then
-      for i in 0..threads_num-1 loop
+      for i in 0..Threads_Num-1 loop
         g_threads(i) := new Path_Trace_Thread(i+1);
       end loop;
       g_threadsCreated := true;
     end if;
 
-    for i in 0..threads_num-1 loop
+    for i in 0..Threads_Num-1 loop
       g_threads(i).Resume;
     end loop;
 
-    for i in 0..threads_num-1 loop
+    for i in 0..Threads_Num-1 loop
       g_threads(i).Finish(g_accBuff, g_spp);
     end loop;
 
@@ -418,7 +418,7 @@ package body Ray_Tracer is
   function GetSPP return integer is
   begin
 
-   if anti_aliasing_on then
+   if Anti_Aliasing_On then
      return g_spp.all*4;
    else
      return g_spp.all;

@@ -59,8 +59,8 @@ package Geometry is
     is_hit : boolean := false;
     t      : float   := infinity;
     normal : float3  := (0.0, 0.0, 0.0);
-    mat    : MaterialRef := null;   -- both mat id and mat ref are needed, but each in it's time while calc intersection
-    matId  : integer := 0;          -- both mat id and mat ref are needed, but each in it's time while calc intersection
+    mat    : MaterialRef := null;   -- both mat id and mat ref are needed, but each in it's time while calc intersection; #TODO: refactor this!
+    matId  : integer := 0;          -- both mat id and mat ref are needed, but each in it's time while calc intersection; #TODO: refactor this!
     tx,ty  : float   := 0.0;
     prim_index : integer := -1;
 

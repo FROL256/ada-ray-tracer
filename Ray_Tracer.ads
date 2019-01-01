@@ -145,7 +145,7 @@ private
   g_cam : Camera;
 
   g_accBuff : AccumBuffRef := null;
-  g_spp     : IntRef := null;
+  g_spp     : IntRef       := null;
 
   --random_gen : Ada.Numerics.Float_Random.Generator;
 
@@ -157,7 +157,7 @@ private
   );
 
 
-  g_light : FlatLight;
+  g_light    : FlatLight;
   g_lightRef : LightRef := null;
 
 end Ray_Tracer;

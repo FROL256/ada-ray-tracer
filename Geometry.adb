@@ -275,7 +275,7 @@ package body Geometry is
     if tmpHit.is_hit then
 
       nearestHit.tmin   := 0.0;       -- tmpHit.tmin; strange bug; does not work when ray start inside bbox
-      nearestHit.tmax   := 1000000.0; -- tmpHit.tmax;  strange bug; does not work when ray start inside bbox
+      nearestHit.tmax   := 1000000.0; -- tmpHit.tmax; strange bug; does not work when ray start inside bbox
       nearestHit.is_hit := false;
 
       for i in meshGeom.triangles'First .. meshGeom.triangles'Last loop

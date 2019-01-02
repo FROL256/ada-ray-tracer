@@ -73,7 +73,7 @@ package Geometry is
   end record;
 
 
-  type Spheres_Array is array (Integer range <>) of Sphere;
+  type Spheres_Array     is array (Integer range <>) of Sphere;
   type Spheres_Array_Ptr is access Spheres_Array;
 
   type Float3_Array      is array(integer range <>) of float3;

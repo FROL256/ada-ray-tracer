@@ -5,6 +5,7 @@ with Vector_Math;
 with Materials;
 with Lights;
 with Geometry;
+with Scene;
 with Ada.Unchecked_Deallocation;
 
 use Interfaces;

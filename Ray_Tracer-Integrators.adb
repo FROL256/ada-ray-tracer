@@ -3,6 +3,7 @@ with Ada.Numerics;
 with Ada.Numerics.Generic_Elementary_Functions;
 with Materials;
 with Lights;
+with Scene;
 with Ada.Exceptions;
 with Ray_Tracer;
 with GNAT.Task_Lock;
@@ -25,13 +26,16 @@ package body Ray_Tracer.Integrators is
     r       : Ray;
     rayDirs : RayDirPack;
     color   : float3;
+    cam     : Scene.Camera;
   begin
+
+      cam := Scene.Get_Camera(g_scn);
 
       for y in 0 .. height - 1 loop
         for x in 0 .. width - 1 loop
 
           r.x      := x; r.y := y;
-          r.origin := g_cam.pos;
+          r.origin := cam.pos;
 
           if Anti_Aliasing_On then
 
@@ -39,7 +43,7 @@ package body Ray_Tracer.Integrators is
             Generate4RayDirections(x, y, res => rayDirs);
 
             for i in 0 .. 3 loop
-              r.direction := normalize(g_cam.matrix*rayDirs(i));
+              r.direction := normalize(cam.matrix*rayDirs(i));
               color := color + PathTrace(Integrator'Class(self), r, StartSample, Max_Trace_Depth);
             end loop;
             
@@ -51,7 +55,7 @@ package body Ray_Tracer.Integrators is
 
             r.x := x; r.y := y;
             r.direction  := EyeRayDirection(x,y);
-            r.direction  := normalize(g_cam.matrix*r.direction);
+            r.direction  := normalize(cam.matrix*r.direction);
             
             GNAT.Task_Lock.Lock;
             colBuff(x,y) := PathTrace(Integrator'Class(self), r, StartSample, Max_Trace_Depth) + colBuff(x,y); -- #TODO: Implement Atomic_Add instead of Task_Lock or use protected type for colBuff 
@@ -87,7 +91,7 @@ package body Ray_Tracer.Integrators is
       return (0.0, 0.0, 0.0);
     end if;
 
-    h := FindClosestHit(r);
+    h := Find_Closest_Hit(r);
 
     if not h.is_hit then
       return (0.0, 0.0, 0.0);
@@ -140,7 +144,7 @@ package body Ray_Tracer.Integrators is
       return (0.0, 0.0, 0.0);
     end if;
 
-    h := FindClosestHit(r);
+    h := Find_Closest_Hit(r);
 
     if not h.is_hit then
       return (0.0, 0.0, 0.0);
@@ -153,9 +157,9 @@ package body Ray_Tracer.Integrators is
     -- explicit sampling
     --
     declare
-
-      hpos      : float3       := (r.origin + r.direction*h.t);      
-      lsam      : ShadowSample := Sample(g_lightRef, self.gen, hpos);
+      hpos      : float3       := (r.origin + r.direction*h.t); 
+      light     : LightRef     := Scene.Light_At(0, g_scn);
+      lsam      : ShadowSample := Sample(light, self.gen, hpos);
       sdir      : float3       := normalize(lsam.pos - hpos);
      
       bxdfVal   : float3;
@@ -207,7 +211,7 @@ package body Ray_Tracer.Integrators is
       return (0.0, 0.0, 0.0);
     end if;
 
-    h := FindClosestHit(r);
+    h := Find_Closest_Hit(r);
 
     if not h.is_hit then
       return (0.0, 0.0, 0.0);
@@ -252,11 +256,12 @@ package body Ray_Tracer.Integrators is
       bxdfVal   : float3;
       misWeight : float;
       cosTheta1 : float;
-
+      light     : LightRef := Scene.Light_At(0, g_scn);
+        
     begin
       
       hpos    := (r.origin + r.direction*h.t);
-      lsam    := Sample(g_lightRef, self.gen, hpos);
+      lsam    := Sample(light, self.gen, hpos);
 
       sdir    := normalize(lsam.pos - hpos);
       lgtPdf  := lsam.pdf;

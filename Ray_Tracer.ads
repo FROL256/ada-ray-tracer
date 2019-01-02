@@ -39,8 +39,7 @@ package Ray_Tracer is
 
   procedure Render_Pass;
 
-  procedure ResizeViewport(size_x,size_y : integer);
-  procedure InitCornellBoxScene;
+  procedure Resize_Viewport(size_x,size_y : integer);
 
   function GetSPP return integer;
 
@@ -54,9 +53,7 @@ package Ray_Tracer is
   type FloatBuff    is array (Integer range <>, integer range <>) of float;
   type FloatBuffRef is access FloatBuff;
 
-  -- this is for test MLTCopyImage only
-  --
-  g_mltTestImage : AccumBuffRef := null;
+  g_scn : Scene.Render_Scene;
 
 private
 
@@ -75,13 +72,6 @@ private
   type AABB is record
     min : float3;
     max : float3;
-  end record;
-
-  type Camera is record
-    pos    : float3;
-    lookAt : float3;
-    up     : float3;
-    matrix : float4x4;
   end record;
 
 
@@ -119,47 +109,15 @@ private
   --procedure delete is new Ada.Unchecked_Deallocation(Object => RandomGenerator, Name => RandRef);
   procedure delete is new Ada.Unchecked_Deallocation(Object => integer, Name => IntRef);
   procedure delete is new Ada.Unchecked_Deallocation(Object => AccumBuff, Name => AccumBuffRef);
-  procedure delete is new Ada.Unchecked_Deallocation(Object => FloatBuff, Name => FloatBuffRef);
-  procedure delete is new Ada.Unchecked_Deallocation(Object => Spheres_Array, Name => Spheres_Array_Ptr);
   procedure delete is new Ada.Unchecked_Deallocation(Object => Path_Trace_Thread, Name => Path_Trace_Thread_Ptr);
 
 
-  function FindClosestHit(r: Ray) return Hit;
-
-  -- very lite scene description
-  --
-
-  type Materials_Array is array (0 .. 10) of MaterialRef;
-  --type Lights_Array    is array (0 .. 1)  of Light;
-
-  type Scene is record
-
-    materials : Materials_Array;
-    --lights    : Lights_Array;
-    spheres   : Spheres_Array_Ptr;
-
-    mymesh : Mesh;
-
-  end record;
-
-  g_scn : Scene;
-  g_cam : Camera;
+  function Find_Closest_Hit(r: Ray) return Hit;
+  pragma Inline(Find_Closest_Hit);
 
   g_accBuff : AccumBuffRef := null;
   g_spp     : IntRef       := null;
 
-  --random_gen : Ada.Numerics.Float_Random.Generator;
-
-  my_cornell_box : CornellBox :=
-  (
-    mat_indices => (2,3,1,1,8,1),
-    normals     => ((1.0,0.0,0.0),   (-1.0,0.0,0.0), (0.0,1.0,0.0), (0.0,-1.0,0.0), (0.0,0.0,1.0), (0.0,0.0,-1.0)),
-    box         => ((-2.5, 0.0, 0.0),( 2.5, 5.0, 5.0))
-  );
-
-
-  g_light    : FlatLight;
-  g_lightRef : LightRef := null;
 
 end Ray_Tracer;
 

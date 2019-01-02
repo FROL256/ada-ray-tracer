@@ -8,6 +8,7 @@ with Ada.Real_Time;
 with Interfaces;
 with Ray_Tracer;
 with Bitmap;
+with Scene;
 
 use Ada.Integer_Text_IO;
 use Ray_Tracer;
@@ -32,8 +33,10 @@ begin
 
    -- init renderer
    --
-   Ray_Tracer.InitCornellBoxScene;
-   Ray_Tracer.ResizeViewport(Ray_Tracer.width, Ray_Tracer.height);
+
+   Scene.Init(Ray_Tracer.g_scn, "");
+
+   Ray_Tracer.Resize_Viewport(Ray_Tracer.width, Ray_Tracer.height);
 
    Bitmap.Init(image, Ray_Tracer.width, Ray_Tracer.height);
 

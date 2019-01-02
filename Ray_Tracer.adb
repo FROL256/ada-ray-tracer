@@ -114,7 +114,7 @@ package body Ray_Tracer is
 
     res.shadowRay := shadowRay;
 
-    h := FindClosestHit(shadowRay);
+    h := Find_Closest_Hit(shadowRay);
 
     maxDist  := length(hit_pos - lpos);
     epsilon2 := max(maxDist*0.000001, 1.0e-30);
@@ -131,39 +131,10 @@ package body Ray_Tracer is
 
   end ComputeShadow;
 
-
-
-  function FindClosestHit(r: Ray) return Hit is
-    hits : array (1..4) of Hit;
-    nearestHitIndex : integer range hits'First..hits'Last := 1;
-    nearestHitDist  : float := infinity;
+  function Find_Closest_Hit(r: Ray) return Hit is
   begin
-
-    hits(1) := IntersectAllSpheres(r, g_scn.spheres);
-    hits(2) := IntersectCornellBox(r, my_cornell_box);
-
-    if GetShapeType(g_lightRef) = Light_Shape_Rect then
-      hits(3) := IntersectFlatLight(r, g_light, g_scn.materials(4));
-    end if;
-
-    hits(4) := IntersectMeshBF(r, g_scn.mymesh);
-
-    for i in hits'First .. hits'Last loop
-
-      if hits(i).is_hit and hits(i).t < nearestHitDist then
-        nearestHitIndex := i;
-        nearestHitDist  := hits(i).t;
-      end if;
-
-    end loop;
-
-    if hits(nearestHitIndex).mat = null then
-      hits(nearestHitIndex).mat := g_scn.materials(hits(nearestHitIndex).matId);
-    end if;
-
-    return hits(nearestHitIndex);
-
-  end FindClosestHit;
+    return Scene.Find_Closest_Hit(r, g_scn);
+  end Find_Closest_Hit;
 
 
   -- multithread stuff
@@ -256,136 +227,8 @@ package body Ray_Tracer is
   end Render_Pass;
 
 
-  procedure InitCornellBoxScene is
-  begin
 
-    -- init spheres geometry
-    --
-    if g_scn.spheres /= null then
-      delete(g_scn.spheres);
-    end if;
-
-    g_scn.spheres := new Spheres_Array(0..1);
-
-    -- create lights
-    --
-    declare
-
-     boxMin : float3 := (-0.75, 4.98, 1.25);
-     boxMax : float3 := ( 0.75, 4.98, 3.25);
-     normal : float3 := (0.0, -1.0, 0.0);
-     intensity : float3 := ( 20.0, 20.0, 20.0);
-
-     flatLight : LightRef := new AreaLight'( boxMin      => boxMin,
-                                             boxMax      => boxMax,
-                                             normal      => normal,
-                                             intensity   => intensity,
-                                             surfaceArea => (boxMax.x - boxMin.x)*(boxMax.z - boxMin.z)
-                                           );
-
-     sphPos    : float3 := (0.0, 4.5, 1.0);
-     sphRadius : float  := 0.5;
-
-     sphLight : LightRef := new SphereLight'( center      => sphPos,
-                                              radius      => sphRadius,
-                                              intensity   => intensity*0.5,
-                                              surfaceArea => 4.0*M_PI*sphRadius*sphRadius );
-
-     oldSpheresNum : integer := g_scn.spheres'Size;
-
-    begin
-
-      --g_lightRef := flatLight;
-      g_lightRef := sphLight;
-
-     if GetShapeType(g_lightRef) = Light_Shape_Rect then                        -- change with virtual function call
-
-        g_light.boxMin := boxMin; -- for geom code, this is temporary
-        g_light.boxMax := boxMax;
-        g_light.normal := normal;
-        g_light.intensity := intensity;
-
-     else
-
-       delete(g_scn.spheres);
-       g_scn.spheres := new Spheres_Array(0..2);
-
-       g_scn.spheres(2).pos := sphPos;
-       g_scn.spheres(2).r   := sphRadius;
-       g_scn.spheres(2).mat := new MaterialLight'(lref => g_lightRef); -- ALERT: memory leak
-
-     end if;
-
-    end;
-
-    -- create materials
-    -- this should cause memry leak, but i'm too lazy to implement memory management for this case (need to implement abtract delete function)
-    --
-    declare
-
-      lmatRef   : MaterialRef := new MaterialLight'(lref => g_lightRef);
-
-      dmatWhite : MaterialRef := new MaterialLambert'(kd => (0.5, 0.5, 0.5));
-      dmatRed   : MaterialRef := new MaterialLambert'(kd => (0.5, 0.0, 0.0));
-      dmatGreen : MaterialRef := new MaterialLambert'(kd => (0.25, 0.5, 0.0));
-
-      smatMirr  : MaterialRef := new MaterialMirror'(reflection => (0.75, 0.75, 0.75));
-      smatPhong : MaterialRef := new MaterialPhong' (reflection => (0.75, 0.75, 0.75), cosPower => 80.0);
-
-      smatGlass : MaterialRef := new MaterialFresnelDielectric'(reflection   => (0.75, 0.75, 0.75),
-                                                                transparency => (0.85, 0.85, 0.85),
-                                                                ior          =>  1.75);
-    begin
-
-      g_scn.materials(0) := smatGlass;
-      g_scn.materials(1) := dmatWhite;
-      g_scn.materials(2) := dmatGreen;
-      g_scn.materials(3) := dmatRed;
-      g_scn.materials(4) := lmatRef;
-      g_scn.materials(5) := smatMirr;
-      g_scn.materials(8) := smatPhong;
-      g_scn.materials(9) := dmatWhite;
-      g_scn.materials(10):= dmatWhite;
-
-      g_scn.spheres(0).mat := smatPhong; -- smatMirr
-      g_scn.spheres(1).mat := smatGlass;
-
-    end;
-
-
-    g_scn.spheres(0).pos := (-1.5,1.0,1.5);
-    g_scn.spheres(0).r   := 1.0;
-
-    g_scn.spheres(1).pos := (1.4,1.0,3.0);
-    g_scn.spheres(1).r   := 1.0;
-
-    declare
-      mrot   : float4x4 := RotationMatrix(-PI/6.0, (0.0, 1.0, 0.0));
-      mscale : float4x4 := IdentityMatrix;
-      mtans  : float4x4 := IdentityMatrix;
-    begin
-
-      SetCol(mtans, 3, (-0.75, 0.1, 3.1, 1.0));
-
-      mscale(0,0) := 2.0;
-      mscale(1,1) := 2.0;
-      mscale(2,2) := 2.0;
-
-      LoadMeshFromVSGF(g_scn.mymesh, mtans*mrot*mscale, "../data/pyramid2.vsgf");
-
-    end;
-
-    -- setup camera
-    --
-    g_cam.pos    := (0.0, 2.55, 12.5);
-    g_cam.lookAt := (0.0, 0.0, 0.0);
-    g_cam.up     := (0.0, 1.0, 0.0);
-    g_cam.matrix := IdentityMatrix;
-
-  end InitCornellBoxScene;
-
-
-  procedure ResizeViewport(size_x, size_y : integer) is
+  procedure Resize_Viewport(size_x, size_y : integer) is
 
   begin
 
@@ -408,7 +251,7 @@ package body Ray_Tracer is
       end loop;
     end loop;
 
-  end ResizeViewport;
+  end Resize_Viewport;
 
   function GetSPP return integer is
   begin

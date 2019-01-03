@@ -19,10 +19,10 @@ package Scene is
   procedure Init   (a_scn : in out Render_Scene; a_path : in String);
   procedure Destroy(a_scn : in out Render_Scene);
 
-  function  Find_Closest_Hit(r : in Geometry.Ray; a_scn : in Render_Scene) return Geometry.Hit;
+  function  Find_Closest_Hit(a_scn : in Render_Scene; r : in Geometry.Ray) return Geometry.Hit;
 
-  function  Material_At(id : in Integer; a_scn : in Render_Scene) return Materials.MaterialRef;
-  function  Light_At   (id : in Integer; a_scn : in Render_Scene) return Lights.LightRef;
+  function  Material_At(a_scn : in Render_Scene; id : in Integer) return Materials.MaterialRef;
+  function  Light_At   (a_scn : in Render_Scene; id : in Integer) return Lights.LightRef;
 
   type Camera is record
     pos    : float3;
@@ -31,7 +31,11 @@ package Scene is
     matrix : float4x4;
   end record;
 
-  function Get_Camera(a_scn : in Render_Scene) return Camera;
+  function Camera_At(a_scn : in Render_Scene; id : in Integer) return Camera;
+
+  pragma Inline(Material_At);
+  pragma Inline(Light_At);
+  pragma Inline(Camera_At);
 
 private
 

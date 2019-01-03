@@ -32,7 +32,7 @@ package body Scene is
   end Destroy;
 
 
-  function  Material_At(id : in Integer; a_scn : in Render_Scene) return Materials.MaterialRef is
+  function  Material_At(a_scn : in Render_Scene; id : in Integer) return Materials.MaterialRef is
   begin
     if id < a_scn.materials'Size then
       return a_scn.materials(id);
@@ -42,18 +42,18 @@ package body Scene is
   end  Material_At;
 
 
-  function  Light_At   (id : in Integer; a_scn : in Render_Scene) return Lights.LightRef is
+  function  Light_At   (a_scn : in Render_Scene; id : in Integer) return Lights.LightRef is
   begin
     return a_scn.g_lightRef;
   end Light_At;
 
-  function  Get_Camera(a_scn : in Render_Scene) return Camera is
+  function Camera_At(a_scn : in Render_Scene; id : in Integer) return Camera is
   begin
     return a_scn.g_cam;
-  end Get_Camera;
+  end Camera_At;
 
 
-  function Find_Closest_Hit(r : in Geometry.Ray; a_scn : in Render_Scene) return Geometry.Hit is
+  function Find_Closest_Hit(a_scn : in Render_Scene; r : in Geometry.Ray) return Geometry.Hit is
     hits            : array (1..4) of Geometry.Hit;
     nearestHitIndex : integer range hits'First..hits'Last := 1;
     nearestHitDist  : float := infinity;

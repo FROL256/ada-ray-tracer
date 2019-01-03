@@ -97,7 +97,7 @@ package body Ray_Tracer is
   end;
 
 
-  function ComputeShadow(hit_pos : float3; lpos : float3) return Shadow_Hit is
+  function Compute_Shadow(hit_pos : float3; lpos : float3) return Shadow_Hit is
     res : Shadow_Hit;
     shadowRay : Ray;
     h : Hit;
@@ -129,11 +129,11 @@ package body Ray_Tracer is
 
     return res;
 
-  end ComputeShadow;
+  end Compute_Shadow;
 
   function Find_Closest_Hit(r: Ray) return Hit is
   begin
-    return Scene.Find_Closest_Hit(r, g_scn);
+    return Scene.Find_Closest_Hit(g_scn, r);
   end Find_Closest_Hit;
 
 

@@ -82,7 +82,7 @@ private
   pragma Inline (ToneMapping);
 
   function EyeRayDirection (x, y : Natural) return float3;
-  function ComputeShadow(hit_pos : float3; lpos : float3) return Shadow_Hit;
+  function Compute_Shadow(hit_pos : float3; lpos : float3) return Shadow_Hit;
 
   type RayDirPack is array (0 ..  3) of float3;
   procedure Generate4RayDirections (x, y : in Natural; res : out RayDirPack);

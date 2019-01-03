@@ -29,7 +29,7 @@ package body Ray_Tracer.Integrators is
     cam     : Scene.Camera;
   begin
 
-      cam := Scene.Get_Camera(g_scn);
+      cam := Scene.Camera_At(g_scn, 0);
 
       for y in 0 .. height - 1 loop
         for x in 0 .. width - 1 loop
@@ -158,7 +158,7 @@ package body Ray_Tracer.Integrators is
     --
     declare
       hpos      : float3       := (r.origin + r.direction*h.t); 
-      light     : LightRef     := Scene.Light_At(0, g_scn);
+      light     : LightRef     := Scene.Light_At(g_scn, 0);
       lsam      : ShadowSample := Sample(light, self.gen, hpos);
       sdir      : float3       := normalize(lsam.pos - hpos);
      
@@ -167,7 +167,7 @@ package body Ray_Tracer.Integrators is
       
     begin
 
-      if not ComputeShadow(hpos, lsam.pos).in_shadow then
+      if not Compute_Shadow(hpos, lsam.pos).in_shadow then
         bxdfVal       := EvalBxDF(h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
         cosTheta1     := max(dot(sdir, h.normal), 0.0);
         explicitColor := lsam.intensity*(cosTheta1*bxdfVal)*(1.0/max(lsam.pdf, G_Epsilon_Div));
@@ -256,7 +256,7 @@ package body Ray_Tracer.Integrators is
       bxdfVal   : float3;
       misWeight : float;
       cosTheta1 : float;
-      light     : LightRef := Scene.Light_At(0, g_scn);
+      light     : LightRef := Scene.Light_At(g_scn, 0);
         
     begin
       
@@ -266,7 +266,7 @@ package body Ray_Tracer.Integrators is
       sdir    := normalize(lsam.pos - hpos);
       lgtPdf  := lsam.pdf;
 
-      if not ComputeShadow(hpos, lsam.pos).in_shadow then
+      if not Compute_Shadow(hpos, lsam.pos).in_shadow then
       
         bsdfPdf   := EvalPDF (h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);
         bxdfVal   := EvalBxDF(h.mat, l => sdir, v => (-1.0)*r.direction, n => h.normal, tx => h.tx, ty => h.ty);

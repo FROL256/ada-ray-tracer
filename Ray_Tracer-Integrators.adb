@@ -56,9 +56,11 @@ package body Ray_Tracer.Integrators is
             r.x := x; r.y := y;
             r.direction  := EyeRayDirection(x,y);
             r.direction  := normalize(cam.matrix*r.direction);
+           
+            color        := PathTrace(Integrator'Class(self), r, StartSample, Max_Trace_Depth);
             
             GNAT.Task_Lock.Lock;
-            colBuff(x,y) := PathTrace(Integrator'Class(self), r, StartSample, Max_Trace_Depth) + colBuff(x,y); -- #TODO: Implement Atomic_Add instead of Task_Lock or use protected type for colBuff 
+            colBuff(x,y) := color + colBuff(x,y); -- #TODO: Implement Atomic_Add instead of Task_Lock or use protected type for colBuff 
             GNAT.Task_Lock.Unlock;
             
           end if;

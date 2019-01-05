@@ -206,8 +206,35 @@ package body Ray_Tracer is
 
 
   procedure Debug_Ray_Tracing is
+
+    palette : constant array (0 .. 7) of float3 := ((0.5, 0.0, 0.0), (0.0, 0.5, 0.0), (0.0, 0.0, 0.5), (0.5, 0.5, 0.5),
+                                                    (0.5, 0.5, 0.0), (0.5, 0.0, 0.5), (0.0, 0.5, 0.5), (0.75, 0.75, 0.75));
+    sz      : constant Integer := palette'Last - palette'First + 1;
+    r       : Ray;
+    cam     : Scene.Camera;
+    h       : Hit;
   begin
-    null;
+
+    cam := Scene.Camera_At(g_scn, 0);
+
+    for y in 0 .. height - 1 loop
+      for x in 0 .. width - 1 loop
+        r.x         := x;
+        r.y         := y;
+        r.origin    := cam.pos;
+        r.direction := normalize(cam.matrix*EyeRayDirection(x,y));
+
+        h           := Scene.Find_Closest_Hit(g_scn, r);
+
+        if not h.is_hit then
+          g_accBuff(x,y) := (0.0, 0.0, 0.0);
+        else
+          g_accBuff(x,y) := palette( h.matId rem sz );
+        end if;
+
+      end loop;
+    end loop;
+
   end Debug_Ray_Tracing;
 
   procedure Render_Pass is
@@ -216,7 +243,19 @@ package body Ray_Tracer is
   begin
 
     if g_rend_type = RT_DEBUG or g_rend_type = RT_WHITTED then
+
       Debug_Ray_Tracing;
+
+      for y in 0 .. height - 1 loop
+        for x in 0 .. width - 1 loop
+          rgb   := g_accBuff(x,y);
+          rgb.x := rgb.x ** (1.0/g_gamma); -- gamma correction
+          rgb.y := rgb.y ** (1.0/g_gamma);
+          rgb.z := rgb.z ** (1.0/g_gamma);
+          screen_buffer(x,y) := ColorToUnsigned_32(ToneMapping((rgb.x, rgb.y, rgb.z)));
+        end loop;
+      end loop;
+
       g_finish := true;
       return;
     end if;

@@ -31,9 +31,6 @@ procedure Test is
 
 begin
 
-   -- init renderer
-   --
-
    Scene.Init(Ray_Tracer.g_scn, "");
 
    --Ray_Tracer.Init_Render(Ray_Tracer.RT_DEBUG);

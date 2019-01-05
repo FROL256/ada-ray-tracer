@@ -98,12 +98,12 @@ package body Ray_Tracer is
 
 
   function Compute_Shadow(hit_pos : float3; lpos : float3) return Shadow_Hit is
-    res : Shadow_Hit;
+    res       : Shadow_Hit;
     shadowRay : Ray;
-    h : Hit;
-    epsilon : float;
-    epsilon2 : float;
-    maxDist : float;
+    h         : Hit;
+    epsilon   : float;
+    epsilon2  : float;
+    maxDist   : float;
   begin
 
     epsilon := max(abs(hit_pos.x), abs(hit_pos.y), abs(hit_pos.z))*0.000000001;
@@ -148,10 +148,13 @@ package body Ray_Tracer is
 
     -- select integrator
     --
-
-    --tracer := new SimplePathTracer;
-    --tracer := new PathTracerWithShadowRays;
-    tracer := new PathTracerMIS;
+    if g_rend_type = PT_STUPID then
+      tracer := new SimplePathTracer;
+    elsif g_rend_type = PT_SHADOW then
+      tracer := new PathTracerWithShadowRays;
+    else
+      tracer := new PathTracerMIS;
+    end if;
 
     tracer.gen := mygen; -- default simple generator
     tracer.Init;         -- Ada 2005 style virtual function call
@@ -190,10 +193,34 @@ package body Ray_Tracer is
 
   end Path_Trace_Thread;
 
+
+  procedure Init_Render(a_rendType : Render_Type) is
+  begin
+    g_rend_type := a_rendType;
+  end Init_Render;
+
+  function Finished return Boolean is
+  begin
+    return g_finish;
+  end Finished;
+
+
+  procedure Debug_Ray_Tracing is
+  begin
+    null;
+  end Debug_Ray_Tracing;
+
   procedure Render_Pass is
     rgb   : float3;
     normC : float;
   begin
+
+    if g_rend_type = RT_DEBUG or g_rend_type = RT_WHITTED then
+      Debug_Ray_Tracing;
+      g_finish := true;
+      return;
+    end if;
+
 
     if not g_threadsCreated then                    -- run only once!
       for i in 0..Threads_Num-1 loop

@@ -36,6 +36,8 @@ begin
 
    Scene.Init(Ray_Tracer.g_scn, "");
 
+   --Ray_Tracer.Init_Render(Ray_Tracer.RT_DEBUG);
+   Ray_Tracer.Init_Render(Ray_Tracer.PT_MIS);
    Ray_Tracer.Resize_Viewport(Ray_Tracer.width, Ray_Tracer.height);
 
    Bitmap.Init(image, Ray_Tracer.width, Ray_Tracer.height);
@@ -48,7 +50,7 @@ begin
    t1 := Ada.Real_Time.Clock;
    Split (t1, sec, temp);
 
-   while true loop
+   while not Ray_Tracer.Finished loop
 
      Ray_Tracer.Render_Pass;
 
@@ -76,6 +78,8 @@ begin
   end loop;
 
   Bitmap.Delete(image);
+
+  Put_Line("render finished");
 
 end Test;
 

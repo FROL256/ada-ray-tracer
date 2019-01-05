@@ -39,6 +39,17 @@ package Scene is
 
 private
 
+  type Sphere is record
+    pos : float3;
+    r   : float;
+    mat : Materials.MaterialRef;
+  end record;
+
+  type AABB is record
+    min : float3;
+    max : float3;
+  end record;
+
   type Materials_Array is array (0 .. 10) of Materials.MaterialRef;
   --type Lights_Array    is array (0 .. 1)  of Lights.Light;
 

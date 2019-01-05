@@ -17,8 +17,6 @@ use Ada.Real_Time;
 use Ada.Text_IO;
 use Text_IO;
 
-
-
 procedure Test is
 
    t1,t2    : Ada.Real_Time.Time;

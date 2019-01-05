@@ -73,11 +73,11 @@ package body Scene is
           bytesize : Natural := Natural(node.Attribute("bytesize").As_Uint);
         begin
           Put("  texture with name: ");
-            Put(Name);
-            Put(" offset:");
-            Put(Natural'Image(offset));
-            Put(" bytesize:");
-            Put_Line(Natural'Image(bytesize));
+          Put(Name);
+          Put(" offset:");
+          Put(Natural'Image(offset));
+          Put(" bytesize:");
+          Put_Line(Natural'Image(bytesize));
         end;
 
         node := node.Next;

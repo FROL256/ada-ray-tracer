@@ -9,8 +9,8 @@ project ART is
    
    SCN_File := "";
    case SCN is 
-     when "external_cpp" => SCN_File := "Scene_Hydra_Embree.adb"; 
-     when "internal_ada" => SCN_File := "Scene.adb"; 
+     when "external_cpp" => SCN_File := "scene_hydra_embree.adb"; 
+     when "internal_ada" => SCN_File := "scene.adb"; 
    end case; 
    
    case SCN is 
@@ -18,16 +18,16 @@ project ART is
 
        for Languages use ("Ada", "C", "C++");
 
-       for Source_Files use ("Bitmap.adb", "Bitmap.ads", "Generic_Vector_Math.adb", "Generic_Vector_Math.ads", "Geometry.adb", "Geometry.ads", "Lights.adb", "Lights.ads", "Materials.adb", "Materials.ads", "Ray_Tracer.adb", "Ray_Tracer.ads", 
-                             "Ray_Tracer-Integrators.adb", "Ray_Tracer-Integrators.ads", SCN_File, "Scene.ads", "test.adb", "Vector_Math.adb", "Vector_Math.ads", 
+       for Source_Files use ("bitmap.adb", "bitmap.ads", "generic_vector_math.adb", "generic_vector_math.ads", "geometry.adb", "geometry.ads", "lights.adb", "lights.ads", "materials.adb", "materials.ads", "ray_tracer.adb", "ray_tracer.ads", 
+                             "ray_tracer-integrators.adb", "ray_tracer-integrators.ads", SCN_File, "scene.ads", "test.adb", "vector_math.adb", "vector_math.ads", 
                              "embree_connect.c", "pugixml.cpp", "pugixml_c.cpp", "pugi_xml.ads", "pugi_xml.adb");
      
      when "internal_ada" =>
      
        for Languages use ("Ada");
      
-       for Source_Files use ("Bitmap.adb", "Bitmap.ads", "Generic_Vector_Math.adb", "Generic_Vector_Math.ads", "Geometry.adb", "Geometry.ads", "Lights.adb", "Lights.ads", "Materials.adb", "Materials.ads", "Ray_Tracer.adb", "Ray_Tracer.ads", 
-                             "Ray_Tracer-Integrators.adb", "Ray_Tracer-Integrators.ads", SCN_File, "Scene.ads", "test.adb", "Vector_Math.adb", "Vector_Math.ads");
+       for Source_Files use ("bitmap.adb", "bitmap.ads", "generic_vector_math.adb", "generic_vector_math.ads", "geometry.adb", "geometry.ads", "lights.adb", "lights.ads", "materials.adb", "materials.ads", "ray_tracer.adb", "ray_tracer.ads", 
+                             "ray_tracer-integrators.adb", "ray_tracer-integrators.ads", SCN_File, "scene.ads", "test.adb", "vector_math.adb", "vector_math.ads");
      
    end case;
 

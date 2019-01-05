@@ -29,7 +29,7 @@ procedure Test is
 
 begin
 
-   Scene.Init(Ray_Tracer.g_scn, "");
+   Scene.Init(Ray_Tracer.g_scn, "/home/frol/PROG/HydraCore/hydra_app/tests/test_42/statex_00001.xml");
 
    --Ray_Tracer.Init_Render(Ray_Tracer.RT_DEBUG);
    Ray_Tracer.Init_Render(Ray_Tracer.PT_MIS);

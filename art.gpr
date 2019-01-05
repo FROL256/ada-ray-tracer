@@ -1,10 +1,10 @@
 project ART is
 
-   for Languages use ("Ada");
    for Main use ("test.adb");
-   for Source_Dirs use (".");
+   for Source_Dirs use (".", "./cpp", "pugixml");
    
    type Scene_Type is ("internal_ada", "external_cpp");
+   
    SCN : Scene_Type := "internal_ada";
    
    SCN_File := "";
@@ -12,9 +12,25 @@ project ART is
      when "external_cpp" => SCN_File := "Scene_Hydra_Embree.adb"; 
      when "internal_ada" => SCN_File := "Scene.adb"; 
    end case; 
+   
+   case SCN is 
+     when "external_cpp" => 
 
-   for Source_Files use ("Bitmap.adb", "Bitmap.ads", "Generic_Vector_Math.adb", "Generic_Vector_Math.ads", "Geometry.adb", "Geometry.ads", "Lights.adb", "Lights.ads", "Materials.adb", "Materials.ads", "Ray_Tracer.adb", "Ray_Tracer.ads", 
-                         "Ray_Tracer-Integrators.adb", "Ray_Tracer-Integrators.ads", SCN_File, "Scene.ads", "test.adb", "Vector_Math.adb", "Vector_Math.ads");
+       for Languages use ("Ada", "C", "C++");
+
+       for Source_Files use ("Bitmap.adb", "Bitmap.ads", "Generic_Vector_Math.adb", "Generic_Vector_Math.ads", "Geometry.adb", "Geometry.ads", "Lights.adb", "Lights.ads", "Materials.adb", "Materials.ads", "Ray_Tracer.adb", "Ray_Tracer.ads", 
+                             "Ray_Tracer-Integrators.adb", "Ray_Tracer-Integrators.ads", SCN_File, "Scene.ads", "test.adb", "Vector_Math.adb", "Vector_Math.ads", 
+                             "embree_connect.c", "pugixml.cpp", "pugixml_c.cpp", "pugi_xml.ads", "pugi_xml.adb");
+     
+     when "internal_ada" =>
+     
+       for Languages use ("Ada");
+     
+       for Source_Files use ("Bitmap.adb", "Bitmap.ads", "Generic_Vector_Math.adb", "Generic_Vector_Math.ads", "Geometry.adb", "Geometry.ads", "Lights.adb", "Lights.ads", "Materials.adb", "Materials.ads", "Ray_Tracer.adb", "Ray_Tracer.ads", 
+                             "Ray_Tracer-Integrators.adb", "Ray_Tracer-Integrators.ads", SCN_File, "Scene.ads", "test.adb", "Vector_Math.adb", "Vector_Math.ads");
+     
+   end case;
+
 
    package Naming is
      for Casing use "MixedCase";

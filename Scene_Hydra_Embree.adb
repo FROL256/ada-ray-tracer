@@ -7,6 +7,7 @@ with Vector_Math;
 with Geometry;
 with Lights;
 with Materials;
+with Pugi_Xml;
 
 
 use Interfaces;
@@ -16,12 +17,76 @@ use Vector_Math;
 use Geometry;
 use Lights;
 use Materials;
+use Pugi_Xml;
 
 package body Scene is
 
+  function test_add(a : Integer; b : Integer) return Integer;
+  pragma Import(C, test_add, "test_add");
+
+
   procedure Init(a_scn : in out Render_Scene; a_path : in String) is
+    Document:   XML_Document;
+    Result:     XML_Parse_Result;
+    root:       XML_Node := Document.Root;
+    attr:       XML_Attribute;
   begin
-    null;
+
+    Put("c/cpp: test_add(2,3) = "); Put_Line(test_add(2,3)'Image);
+
+    Document.Load(a_path, Result => Result);
+
+    if not Result.OK then
+      Put(Result.Description);
+      Put(": xml parse status ");
+      Put(XML_Parse_Status'Image(Result.Status));
+      Put(" at offset ");
+      Put_Line(Natural'Image(Result.Offset));
+    end if;
+    pragma Assert(Result.OK = True);
+
+    Put_Line("XML load success");
+
+    root := Document.Root;
+
+    declare
+      texlib, matlib, lgtlib, geolib : XML_Node;
+      camlib, setlib, scnlib, node  : XML_Node;
+    begin
+
+      texlib := root.child("textures_lib");
+      matlib := root.child("materials_lib");
+      lgtlib := root.child("lights_lib");
+      camlib := root.child("cam_lib");
+      geolib := root.child("geometry_lib");
+      setlib := root.child("render_lib");
+      scnlib := root.child("scenes");
+
+
+      node := texlib.child("texture");
+      while not node.Is_Null loop
+
+        declare
+          Name     : String  := node.Attribute("name").Value;
+          Loc      : String  := node.Attribute("loc").Value;
+          offset   : Natural := Natural(node.Attribute("offset").As_Uint);
+          bytesize : Natural := Natural(node.Attribute("bytesize").As_Uint);
+        begin
+          Put("  texture with name: ");
+            Put(Name);
+            Put(" offset:");
+            Put(Natural'Image(offset));
+            Put(" bytesize:");
+            Put_Line(Natural'Image(bytesize));
+        end;
+
+        node := node.Next;
+
+      end loop;
+
+
+    end;
+
   end Init;
 
   procedure Destroy(a_scn : in out Render_Scene) is

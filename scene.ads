@@ -53,8 +53,11 @@ private
   type Materials_Array is array (0 .. 10) of Materials.MaterialRef;
   --type Lights_Array    is array (0 .. 1)  of Lights.Light;
 
+  type Mesh_Array is array (Natural range <>) of Geometry.Mesh;
+  type Mesh_Array_Ptr is access Mesh_Array;
 
   type Render_Scene is record
+    meshes    : Mesh_Array_Ptr := null;
     materials : Materials_Array;
     --lights    : Lights_Array;
     spheres   : Geometry.Spheres_Array_Ptr;
@@ -79,5 +82,6 @@ private
 
   procedure delete is new Ada.Unchecked_Deallocation(Object => FloatBuff, Name => FloatBuffRef);
   procedure delete is new Ada.Unchecked_Deallocation(Object => Geometry.Spheres_Array, Name => Geometry.Spheres_Array_Ptr);
+  procedure delete is new Ada.Unchecked_Deallocation(Object => Mesh_Array, Name => Mesh_Array_Ptr);
 
 end Scene;

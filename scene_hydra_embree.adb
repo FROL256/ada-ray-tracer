@@ -3,16 +3,19 @@ with Ada.Streams.Stream_IO;
 with Ada.Numerics;
 with Ada.Numerics.Float_Random;
 with Ada.Numerics.Generic_Elementary_Functions;
+with Ada.Strings.Unbounded;
+
 with Vector_Math;
 with Geometry;
 with Lights;
 with Materials;
 with Pugi_Xml;
 
-
 use Interfaces;
 use Ada.Streams.Stream_IO;
 use Ada.Numerics;
+use Ada.Strings.Unbounded;
+
 use Vector_Math;
 use Geometry;
 use Lights;
@@ -25,16 +28,60 @@ package body Scene is
   pragma Import(C, test_add, "test_add");
 
 
+  function Count_Childs(node : in XML_Node) return Integer is
+    childNum : Integer := 0;
+    chld     : XML_Node;
+  begin
+
+    chld := node.first_child;
+
+    while not chld.Is_Null loop
+      childNum := childNum + 1;
+      chld     := chld.next;
+    end loop;
+
+    return childNum;
+
+  end Count_Childs;
+
+  procedure Load_Meshes(a_lib : in XML_Node; a_folder : in String; result : out Mesh_Array) is
+    i    : Integer := 0;
+    chld : XML_Node;
+    loc  : Unbounded_String;
+  begin
+
+    chld := a_lib.first_child;
+
+    while not chld.Is_Null loop
+
+      loc := To_Unbounded_String( a_folder & "/" & chld.attribute("loc").value );
+      Geometry.LoadMeshFromVSGF(result(i), IdentityMatrix, To_String(loc));
+
+      i    := i + 1;
+      chld := chld.next;
+
+    end loop;
+
+  end Load_Meshes;
+
   procedure Init(a_scn : in out Render_Scene; a_path : in String) is
+
+    xmlFileName : Unbounded_String;
+
     Document:   XML_Document;
     Result:     XML_Parse_Result;
     root:       XML_Node := Document.Root;
     attr:       XML_Attribute;
+
+    numMat, numLights, numMeshes : Natural;
+
   begin
 
     Put("c/cpp: test_add(2,3) = "); Put_Line(test_add(2,3)'Image);
 
-    Document.Load(a_path, Result => Result);
+    xmlFileName := To_Unbounded_String(a_path & "/statex_00001.xml");
+
+    Document.Load(To_String(xmlFileName), Result => Result);
 
     if not Result.OK then
       Put(Result.Description);
@@ -45,13 +92,13 @@ package body Scene is
     end if;
     pragma Assert(Result.OK = True);
 
-    Put_Line("XML load success");
+    Put_Line("[scene]: XML load success.");
 
     root := Document.Root;
 
     declare
       texlib, matlib, lgtlib, geolib : XML_Node;
-      camlib, setlib, scnlib, node  : XML_Node;
+      camlib, setlib, scnlib, node   : XML_Node;
     begin
 
       texlib := root.child("textures_lib");
@@ -62,15 +109,35 @@ package body Scene is
       setlib := root.child("render_lib");
       scnlib := root.child("scenes");
 
+      pragma Assert(not matlib.Is_Null);
+      pragma Assert(not lgtlib.Is_Null);
+      pragma Assert(not geolib.Is_Null);
+      pragma Assert(not scnlib.Is_Null);
+
+      numMat    := Count_Childs(matlib);
+      numLights := Count_Childs(lgtlib);
+      numMeshes := Count_Childs(geolib);
+
+      Put("[scene]: num(meshes   ) = "); Put_Line(numMeshes'Image);
+      Put("[scene]: num(lights   ) = "); Put_Line(numLights'Image);
+      Put("[scene]: num(materials) = "); Put_Line(numMat'Image);
+
+      if a_scn.meshes /= null then
+        delete(a_scn.meshes);
+        a_scn.meshes := null;
+      end if;
+
+      a_scn.meshes := new Mesh_Array(0 .. numMeshes-1);
+      Load_Meshes(geolib, a_path, result => a_scn.meshes.all);
 
       node := texlib.child("texture");
       while not node.Is_Null loop
 
         declare
-          Name     : String  := node.Attribute("name").Value;
-          Loc      : String  := node.Attribute("loc").Value;
-          offset   : Natural := Natural(node.Attribute("offset").As_Uint);
-          bytesize : Natural := Natural(node.Attribute("bytesize").As_Uint);
+          Name     : String  := node.attribute("name").value;
+          Loc      : String  := node.attribute("loc").value;
+          offset   : Natural := Natural(node.attribute("offset").as_uint);
+          bytesize : Natural := Natural(node.attribute("bytesize").as_uint);
         begin
           Put("  texture with name: ");
           Put(Name);
@@ -91,7 +158,12 @@ package body Scene is
 
   procedure Destroy(a_scn : in out Render_Scene) is
   begin
-    null;
+
+    if a_scn.meshes /= null then
+      delete(a_scn.meshes);
+      a_scn.meshes := null;
+    end if ;
+
   end Destroy;
 
 

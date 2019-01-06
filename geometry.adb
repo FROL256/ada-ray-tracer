@@ -359,8 +359,8 @@ package body Geometry is
      self.vert_positions  := new Float3_Array(0..vnum-1);
      self.vert_normals    := new Float3_Array(0..vnum-1);
      self.vert_tex_coords := new Float2_Array(0..vnum-1);
-     self.triangles       := new Triangle_Array(0..inum/3-1);
-     self.material_ids    := new MaterialsId_Array(0..vnum-1);
+     self.triangles       := new Triangle_Array   (0..inum/3-1);
+     self.material_ids    := new MaterialsId_Array(0..inum/3-1);
    end AllocData;
 
    procedure ComputeFlatNormals(self: in out Mesh) is
@@ -527,16 +527,11 @@ package body Geometry is
 
      VSGF_Header'Read(S, header);
 
-     Put("load vsgf file : ");
-     Put_Line(a_fileName);
-     Put("sizeInBytes    :");
-     Put_Line(Long_Long_Integer'Image(header.fileSizeInBytes));
-     Put("vertices       :");
-     Put_Line(Integer'Image(header.verticesNum));
-     Put("triangles      :");
-     Put_Line(Integer'Image(header.indicesNum/3));
-     Put("materials      :");
-     Put_Line(Integer'Image(header.materialsNum));
+     Put("load vsgf file :"); Put_Line(a_fileName);
+     Put("sizeInBytes    :"); Put_Line(Long_Long_Integer'Image(header.fileSizeInBytes));
+     Put("vertices       :"); Put_Line(Integer'Image(header.verticesNum));
+     Put("triangles      :"); Put_Line(Integer'Image(header.indicesNum/3));
+     --Put("materials      :"); Put_Line(Integer'Image(header.materialsNum));
 
      FreeData(self);
      AllocData(self, header.verticesNum, header.indicesNum);
@@ -588,6 +583,7 @@ package body Geometry is
      -- read material indices
      --
      for i in 0 .. (header.indicesNum/3-1) loop
+       --Put_Line(i'Image);
        integer'Read(S, self.material_ids(i));
      end loop;
 

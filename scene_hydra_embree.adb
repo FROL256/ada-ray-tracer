@@ -4,6 +4,7 @@ with Ada.Numerics;
 with Ada.Numerics.Float_Random;
 with Ada.Numerics.Generic_Elementary_Functions;
 with Ada.Strings.Unbounded;
+with Ada.Text_IO;
 
 with Vector_Math;
 with Geometry;
@@ -22,7 +23,10 @@ use Lights;
 use Materials;
 use Pugi_Xml;
 
+
 package body Scene is
+
+  package Float_IO is new Ada.Text_IO.Float_IO(float);
 
   function test_add(a : Integer; b : Integer) return Integer;
   pragma Import(C, test_add, "test_add");
@@ -55,7 +59,7 @@ package body Scene is
     while not chld.Is_Null loop
 
       loc := To_Unbounded_String( a_folder & "/" & chld.attribute("loc").value );
-      Geometry.LoadMeshFromVSGF(result(i), IdentityMatrix, To_String(loc));
+      LoadMeshFromVSGF(result(i), IdentityMatrix, To_String(loc));
 
       i    := i + 1;
       chld := chld.next;
@@ -63,6 +67,92 @@ package body Scene is
     end loop;
 
   end Load_Meshes;
+
+
+  function Read_Float3_From_String(str : String) return float3 is
+    arr  : array (0 .. 2) of float;
+    coord, i, j : Integer := str'First;
+  begin
+
+    for coord in 0 .. 2 loop
+
+      while j <= str'Last and then str(j) /= ' ' loop -- find next space
+        j := j + 1;
+      end loop;
+
+      if j = str'Last then
+        arr(coord) := 0.0;
+      else
+        arr(coord) := Float'Value(str(i..j-1));
+      end if;
+
+      while j <= str'Last and then str(j) = ' ' loop -- now skip all spaces
+        j := j + 1;
+      end loop;
+
+      i := j;
+
+    end loop;
+
+    return (arr(0), arr(1), arr(2));
+
+  end Read_Float3_From_String;
+
+  -- this function is a bit specific to hydra legacy format when value an be stoored in text or in attrib 'val'
+  -- So it check node->attribute("val") first and if it is empty try to read float3 from node body/text
+  --
+  function Read_Float3_Val(a_node : in XML_Node) return float3 is
+    attr_val : XML_Attribute;
+  begin
+
+    if a_node.Is_Null then
+      return (0.0, 0.0, 0.0);
+    else
+
+      attr_val := a_node.attribute("val");
+
+      if not attr_val.Is_Null then
+        return Read_Float3_From_String(attr_val.value);
+      else
+        return Read_Float3_From_String(a_node.text);
+      end if;
+
+    end if;
+
+  end Read_Float3_Val;
+
+
+  function Create_Material_From_Node(a_mnode : in XML_Node) return MaterialRef is
+    diff_color : float3;
+  begin
+
+    diff_color := Read_Float3_Val(a_mnode.child("diffuse").child("color"));
+
+    Put("mat( "); Put(a_mnode.attribute("name").value); Put(") = ");
+    Put(diff_color.x'Image); Put(" ");  Put(diff_color.y'Image); Put(" "); Put(diff_color.z'Image); Put_Line("");
+
+    return null;
+  end Create_Material_From_Node;
+
+  procedure Load_Materials(a_lib : in XML_Node; a_folder : in String; result : out Materials_Array) is
+     i    : Integer := 0;
+     chld : XML_Node;
+  begin
+
+    chld := a_lib.first_child;
+    while not chld.Is_Null loop
+      result(i) := Create_Material_From_Node(chld);
+      i         := i + 1;
+      chld      := chld.next;
+    end loop;
+
+  end Load_Materials;
+
+
+  -----------------------------------------------------------------------------------------------------
+  -----------------------------------------------------------------------------------------------------
+  -----------------------------------------------------------------------------------------------------
+  -----------------------------------------------------------------------------------------------------
 
   procedure Init(a_scn : in out Render_Scene; a_path : in String) is
 
@@ -122,13 +212,14 @@ package body Scene is
       Put("[scene]: num(lights   ) = "); Put_Line(numLights'Image);
       Put("[scene]: num(materials) = "); Put_Line(numMat'Image);
 
-      if a_scn.meshes /= null then
-        delete(a_scn.meshes);
-        a_scn.meshes := null;
-      end if;
+      delete(a_scn.meshes);
+      delete(a_scn.materials); -- #TODO: delete each material ref ...
 
-      a_scn.meshes := new Mesh_Array(0 .. numMeshes-1);
-      Load_Meshes(geolib, a_path, result => a_scn.meshes.all);
+      a_scn.meshes    := new Mesh_Array     (0 .. numMeshes - 1);
+      a_scn.materials := new Materials_Array(0 .. numMat    - 1);
+
+      Load_Meshes   (geolib, a_path, result => a_scn.meshes.all);
+      Load_Materials(matlib, a_path, result => a_scn.materials.all);
 
       node := texlib.child("texture");
       while not node.Is_Null loop

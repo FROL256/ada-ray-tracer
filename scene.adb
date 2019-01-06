@@ -166,6 +166,9 @@ package body Scene is
                                                                 ior          =>  1.75);
     begin
 
+      delete(a_scn.materials);
+      a_scn.materials := new Materials_Array(0 .. 10);
+
       a_scn.materials(0) := smatGlass;
       a_scn.materials(1) := dmatWhite;
       a_scn.materials(2) := dmatGreen;

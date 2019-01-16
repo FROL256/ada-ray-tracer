@@ -70,7 +70,7 @@ package body Scene is
 
 
   function Read_Float3_From_String(str : String) return float3 is
-    arr  : array (0 .. 2) of float;
+    arr  : array (0 .. 2) of float := (0.0, 0.0, 0.0);
     coord, i, j : Integer := str'First;
   begin
 
@@ -80,17 +80,17 @@ package body Scene is
         j := j + 1;
       end loop;
 
-      if j = str'Last then
-        arr(coord) := 0.0;
-      else
-        arr(coord) := Float'Value(str(i..j-1));
-      end if;
+      arr(coord) := Float'Value(str(i..j-1));
 
       while j <= str'Last and then str(j) = ' ' loop -- now skip all spaces
         j := j + 1;
       end loop;
 
       i := j;
+
+      if i = str'Last then
+        exit;
+      end if;
 
     end loop;
 

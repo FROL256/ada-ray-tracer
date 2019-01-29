@@ -31,8 +31,8 @@ begin
 
    Scene.Init(Ray_Tracer.g_scn, "/home/frol/PROG/HydraCore/hydra_app/tests/test_42");
 
-   Ray_Tracer.Init_Render(Ray_Tracer.RT_DEBUG);
-   --Ray_Tracer.Init_Render(Ray_Tracer.PT_MIS);
+   --Ray_Tracer.Init_Render(Ray_Tracer.RT_DEBUG);
+   Ray_Tracer.Init_Render(Ray_Tracer.PT_MIS);
    Ray_Tracer.Resize_Viewport(Ray_Tracer.width, Ray_Tracer.height);
 
    Bitmap.Init(image, Ray_Tracer.width, Ray_Tracer.height);

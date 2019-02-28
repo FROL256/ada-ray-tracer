@@ -16,11 +16,11 @@ project ART is
    case SCN is 
      when "external_cpp" => 
 
-       for Languages use ("Ada", "C", "C++");
+       for Languages use ("Ada", "C++");
 
        for Source_Files use ("bitmap.adb", "bitmap.ads", "generic_vector_math.adb", "generic_vector_math.ads", "geometry.adb", "geometry.ads", "lights.adb", "lights.ads", "materials.adb", "materials.ads", "ray_tracer.adb", "ray_tracer.ads", 
                              "ray_tracer-integrators.adb", "ray_tracer-integrators.ads", SCN_File, "scene.ads", "test.adb", "vector_math.adb", "vector_math.ads", 
-                             "embree_connect.c", "pugixml.cpp", "pugixml_c.cpp", "pugi_xml.ads", "pugi_xml.adb");
+                             "embree_connect.cpp", "pugixml.cpp", "pugixml_c.cpp", "pugi_xml.ads", "pugi_xml.adb");
      
      when "internal_ada" =>
      

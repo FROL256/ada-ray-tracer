@@ -5,7 +5,7 @@ project ART is
    
    type Scene_Type is ("internal_ada", "external_cpp");
    
-   SCN : Scene_Type := "internal_ada";
+   SCN : Scene_Type := "external_cpp";
    
    SCN_File := "";
    case SCN is 

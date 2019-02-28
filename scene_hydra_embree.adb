@@ -29,8 +29,10 @@ package body Scene is
   package Float_IO is new Ada.Text_IO.Float_IO(float);
 
   function test_add(a : Integer; b : Integer) return Integer;
-  pragma Import(C, test_add, "test_add");
+  pragma Import(C, test_add, "c_test_add");
 
+  procedure c_init_hydra_scene;
+  pragma Import(C, c_init_hydra_scene, "c_init_hydra_scene");
 
   function Count_Childs(node : in XML_Node) return Integer is
     childNum : Integer := 0;
@@ -134,7 +136,7 @@ package body Scene is
     return null;
   end Create_Material_From_Node;
 
-  procedure Load_Materials(a_lib : in XML_Node; a_folder : in String; result : out Materials_Array) is
+  procedure Load_Materials(a_lib : in XML_Node; result : out Materials_Array) is
      i    : Integer := 0;
      chld : XML_Node;
   begin
@@ -147,6 +149,34 @@ package body Scene is
     end loop;
 
   end Load_Materials;
+
+
+  procedure Load_Textures(a_node : in XML_Node; a_folder : in String) is
+     i    : Integer  := 0;
+     node : XML_Node := a_node.first_child;
+  begin
+
+    while not node.Is_Null loop
+
+      declare
+        Name     : String  := node.attribute("name").value;
+        Loc      : String  := node.attribute("loc").value;
+        offset   : Natural := Natural(node.attribute("offset").as_uint);
+        bytesize : Natural := Natural(node.attribute("bytesize").as_uint);
+      begin
+        Put("texture with name: ");
+        Put(Name);
+        Put(" offset:");
+        Put(Natural'Image(offset));
+        Put(" bytesize:");
+        Put_Line(Natural'Image(bytesize));
+      end;
+
+      node := node.Next;
+
+    end loop;
+
+  end Load_Textures;
 
 
   -----------------------------------------------------------------------------------------------------
@@ -218,30 +248,10 @@ package body Scene is
       a_scn.meshes    := new Mesh_Array     (0 .. numMeshes - 1);
       a_scn.materials := new Materials_Array(0 .. numMat    - 1);
 
-      Load_Meshes   (geolib, a_path, result => a_scn.meshes.all);
-      Load_Materials(matlib, a_path, result => a_scn.materials.all);
-
-      node := texlib.child("texture");
-      while not node.Is_Null loop
-
-        declare
-          Name     : String  := node.attribute("name").value;
-          Loc      : String  := node.attribute("loc").value;
-          offset   : Natural := Natural(node.attribute("offset").as_uint);
-          bytesize : Natural := Natural(node.attribute("bytesize").as_uint);
-        begin
-          Put("  texture with name: ");
-          Put(Name);
-          Put(" offset:");
-          Put(Natural'Image(offset));
-          Put(" bytesize:");
-          Put_Line(Natural'Image(bytesize));
-        end;
-
-        node := node.Next;
-
-      end loop;
-
+                                                                     Put_Line("");
+      Load_Meshes   (geolib, a_path, result => a_scn.meshes.all);    Put_Line("");
+      Load_Materials(matlib,         result => a_scn.materials.all); Put_Line("");
+      Load_Textures (texlib, a_path);                                Put_Line(""); -- #TODO: implement texture load
 
     end;
 

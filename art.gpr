@@ -48,6 +48,7 @@ project ART is
 
    package Linker is
       for Default_Switches ("ada") use ("-fprofile-generate");
+      for Default_Switches ("ada") use ("-Lcpp", "-lembree3", "-llexers", "-lsimd", "-lsys", "-ltasking");
    end Linker;
 
    package Builder is

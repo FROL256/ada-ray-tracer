@@ -31,8 +31,8 @@ package body Scene is
   function test_add(a : Integer; b : Integer) return Integer;
   pragma Import(C, test_add, "c_test_add");
 
-  procedure c_init_hydra_scene;
-  pragma Import(C, c_init_hydra_scene, "c_init_hydra_scene");
+  procedure c_gcore_init;
+  pragma Import(C, c_gcore_init, "c_gcore_init");
 
   function Count_Childs(node : in XML_Node) return Integer is
     childNum : Integer := 0;
@@ -252,6 +252,14 @@ package body Scene is
       Load_Meshes   (geolib, a_path, result => a_scn.meshes.all);    Put_Line("");
       Load_Materials(matlib,         result => a_scn.materials.all); Put_Line("");
       Load_Textures (texlib, a_path);                                Put_Line(""); -- #TODO: implement texture load
+
+      -- now put all meshes inside embree
+      --
+
+      pragma Assert(a_scn.meshes.all'Size    > 0);
+      pragma Assert(a_scn.materials.all'Size > 0);
+
+      -- pragma Assert(not matlib.Is_Null);
 
     end;
 

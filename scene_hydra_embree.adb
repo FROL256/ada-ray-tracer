@@ -32,15 +32,13 @@ package body Scene is
 
   ------------------------------------------------------------------------------
 
-  function test_add(a : Integer; b : Integer) return Integer;
-  pragma Import(C, test_add, "c_test_add");
-
-  procedure c_gcore_init_and_clear;
-  pragma Import(C, c_gcore_init_and_clear, "c_gcore_init_and_clear");
+  procedure gcore_init_and_clear;
+  pragma Import(C, gcore_init_and_clear, "gcore_init_and_clear");
 
 
-  function c_gcore_add_mesh(a_vertices4f : Address; a_indices : Address; a_indicesNum : Integer) return Integer;
-  pragma Import(C, c_gcore_add_mesh, "c_gcore_add_mesh");
+  function gcore_add_mesh_3f(a_vertices4f : Address; a_vertexNum  : Integer;
+                             a_indices    : Address; a_indicesNum : Integer) return Integer;
+  pragma Import(C, gcore_add_mesh_3f, "gcore_add_mesh_3f");
 
   ------------------------------------------------------------------------------
 
@@ -271,7 +269,7 @@ package body Scene is
 
       -- pragma Assert(not matlib.Is_Null);
 
-      c_gcore_init_and_clear;
+      gcore_init_and_clear;
 
       -- pass all meshes to geometry core
       --
@@ -283,15 +281,10 @@ package body Scene is
         declare
           geomId  : Integer := 0;
           meshr   : Mesh    := a_scn.meshes(meshId);
-          p1,p2   : Address;
         begin
 
-          p1     := meshr.vert_positions(0)'Address;
-          p2     := meshr.triangles(0)'Address;
-
-          Put_Line("here!");
-
-          geomId := c_gcore_add_mesh(p1, p2, (meshr.triangles'Size)*3);
+          geomId := gcore_add_mesh_3f(meshr.vert_positions(0)'Address, meshr.vert_positions'Size,
+                                      meshr.triangles(0)'Address,      (meshr.triangles'Size)*3);
 
           Put("geomId = "); Put_Line(geomId'Image);
 

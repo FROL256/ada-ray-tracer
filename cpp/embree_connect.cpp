@@ -1,5 +1,6 @@
 #include "embree3/rtcore.h"
 
+#include <memory.h>
 #include <vector>
 #include <iostream>
 
@@ -23,7 +24,7 @@ struct GlobalData
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-extern "C" void c_gcore_destroy()
+extern "C" void gcore_destroy()
 {
   if(g_data.device != nullptr)
   {
@@ -32,9 +33,9 @@ extern "C" void c_gcore_destroy()
   }
 }
 
-extern "C" void c_gcore_init_and_clear()
+extern "C" void gcore_init_and_clear()
 {
-  c_gcore_destroy();
+  gcore_destroy();
 
   g_data.m_meshes.resize(0);
   g_data.m_instances.resize(0);
@@ -43,9 +44,8 @@ extern "C" void c_gcore_init_and_clear()
   
 }
 
-extern "C" int c_gcore_add_mesh(const float* a_vertices4f, const int* a_indices, int a_indicesNum)
+extern "C" int gcore_add_mesh_3f(const float* a_vertices3f, int a_vertexNum, const int* a_indices, int a_indicesNum)
 {
-
   RTCGeometry geom = rtcNewGeometry(g_data.device, RTC_GEOMETRY_TYPE_TRIANGLE);
 
   if(geom == NULL)
@@ -54,21 +54,8 @@ extern "C" int c_gcore_add_mesh(const float* a_vertices4f, const int* a_indices,
     return 0;
   }
 
-  Vertex* vertices = (Vertex*)rtcSetNewGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3,sizeof(Vertex),4);
-
-  if(vertices == nullptr)
-  {
-    std::cout << "[c_gcore]: rtcSetNewGeometryBuffer failed to allocate memory" << std::endl;
-    return 0;
-  }
-
-  vertices[0].x = -10.0f; vertices[0].y = -2.0f; vertices[0].z = -10.0f;  /////////////////////////////////////////////////////////// <<<---------------------------- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  vertices[1].x = -10.0f; vertices[1].y = -2.0f; vertices[1].z = +10.0f;
-  vertices[2].x = +10.0f; vertices[2].y = -2.0f; vertices[2].z = -10.0f;
-  vertices[3].x = +10.0f; vertices[3].y = -2.0f; vertices[3].z = +10.0f;
-
   /* set triangles */
-  Triangle* triangles = (Triangle*) rtcSetNewGeometryBuffer(geom,RTC_BUFFER_TYPE_INDEX,0,RTC_FORMAT_UINT3,sizeof(Triangle),2);
+  Triangle* triangles = (Triangle*) rtcSetNewGeometryBuffer(geom, RTC_BUFFER_TYPE_INDEX, 0, RTC_FORMAT_UINT3,sizeof(Triangle), a_indicesNum/3);
 
   if(triangles == nullptr)
   {
@@ -76,32 +63,57 @@ extern "C" int c_gcore_add_mesh(const float* a_vertices4f, const int* a_indices,
     return 0;
   }
 
-  triangles[0].v0 = 0; triangles[0].v1 = 1; triangles[0].v2 = 2;
-  triangles[1].v0 = 1; triangles[1].v1 = 3; triangles[1].v2 = 2;
+  // put indices
+  //
+  const int triNum = a_indicesNum/3;
+  int maxVertexId = 0;
+  for(int i=0; i< triNum; i++)
+  {
+    int A = a_indices[i*3 + 0]; 
+    int B = a_indices[i*3 + 1]; 
+    int C = a_indices[i*3 + 2];
+
+    if(A >= a_vertexNum) A = a_vertexNum-1;  // #NOTE: why this is happen ??? Check scenes !!!
+    if(B >= a_vertexNum) B = a_vertexNum-1;
+    if(C >= a_vertexNum) C = a_vertexNum-1;
+
+    if(A > maxVertexId) maxVertexId = A;
+    if(B > maxVertexId) maxVertexId = B;
+    if(C > maxVertexId) maxVertexId = C;
+
+    triangles[i].v0 = A; 
+    triangles[i].v1 = B; 
+    triangles[i].v2 = C;
+  }
+
+  // put vertices
+  //
+  Vertex* vertices = (Vertex*)rtcSetNewGeometryBuffer(geom, RTC_BUFFER_TYPE_VERTEX, 0, RTC_FORMAT_FLOAT3, sizeof(Vertex), maxVertexId);
+  if(vertices == nullptr)
+  {
+    std::cout << "[c_gcore]: rtcSetNewGeometryBuffer failed to allocate memory" << std::endl;
+    return 0;
+  }
+
+  for(int vertexId=0; vertexId < maxVertexId; vertexId++)
+  {
+    vertices[vertexId].x = a_vertices3f[vertexId*3+0];
+    vertices[vertexId].y = a_vertices3f[vertexId*3+1];
+    vertices[vertexId].z = a_vertices3f[vertexId*3+2];
+  }
 
   rtcCommitGeometry(geom);
-
   g_data.m_meshes.push_back( rtcNewScene(g_data.device) );
-
-  unsigned int geomID = rtcAttachGeometry(g_data.m_meshes[g_data.m_meshes.size()-1], geom);
+  unsigned int geomID = rtcAttachGeometry(g_data.m_meshes[g_data.m_meshes.size()-1], geom); // geomID is always equal to 0
   rtcReleaseGeometry(geom);
-
-  if(geomID != g_data.m_meshes.size()-1)
-    std::cout << "[c_gcore]: BROKEN GEOM INDEX" << geomID << std::endl;
-  else
-    std::cout << "[c_gcore]: CORECT GEOM INDEX" << geomID << std::endl;
-
-  return geomID;
+  
+  return g_data.m_meshes.size()-1;
 }
 
 
-extern "C" int c_gcore_instance_meshes(int a_geomId, const float* a_matrices16f, int a_matrixNum)
+extern "C" int gcore_instance_meshes(int a_geomId, const float* a_matrices16f, int a_matrixNum)
 {
   return 0;
 }
 
 
-extern "C" int c_test_add(int a, int b)
-{
-  return a+b;
-}

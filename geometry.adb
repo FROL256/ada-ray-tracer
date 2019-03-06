@@ -559,10 +559,11 @@ package body Geometry is
 
      -- read texcoords
      --
-     for i in 0 .. header.verticesNum - 1 loop
+     for i in 0 .. header.verticesNum - 1 loop                                   -- TODO: texture coordinates could be invalid; in that case set them to 0.
        float2'Read(S, temp2);
-       self.vert_tex_coords(i).x := temp2.x;
-       self.vert_tex_coords(i).y := temp2.y;
+       --Put("(x,y) = ("); Put(temp2.x'Image); Put(","); Put(temp2.y'Image); Put_Line(")");
+       self.vert_tex_coords(i).x := 0.0; -- temp2.x;
+       self.vert_tex_coords(i).y := 0.0; -- temp2.y;
      end loop;
 
      -- read tangents

@@ -47,8 +47,15 @@ project ART is
    end Pretty_Printer;
 
    package Linker is
-      for Default_Switches ("ada") use ("-fprofile-generate");
-      for Default_Switches ("ada") use ("-Lcpp", "-lembree3", "-llexers", "-lsimd", "-lsys", "-ltasking");
+   
+     case SCN is 
+       when "external_cpp" =>
+         for Default_Switches ("ada") use ("-fprofile-generate");
+         for Default_Switches ("ada") use ("-Lcpp", "-lembree3", "-llexers", "-lsimd", "-lsys", "-ltasking");
+ 
+       when "internal_ada" =>
+         for Default_Switches ("ada") use ("-fprofile-generate");
+     end case;
    end Linker;
 
    package Builder is

@@ -11,6 +11,7 @@ with Geometry;
 with Lights;
 with Materials;
 with Pugi_Xml;
+with System;
 
 use Interfaces;
 use Ada.Streams.Stream_IO;
@@ -22,17 +23,26 @@ use Geometry;
 use Lights;
 use Materials;
 use Pugi_Xml;
+use System;
 
 
 package body Scene is
 
   package Float_IO is new Ada.Text_IO.Float_IO(float);
 
+  ------------------------------------------------------------------------------
+
   function test_add(a : Integer; b : Integer) return Integer;
   pragma Import(C, test_add, "c_test_add");
 
-  procedure c_gcore_init;
-  pragma Import(C, c_gcore_init, "c_gcore_init");
+  procedure c_gcore_init_and_clear;
+  pragma Import(C, c_gcore_init_and_clear, "c_gcore_init_and_clear");
+
+
+  function c_gcore_add_mesh(a_vertices4f : Address; a_indices : Address; a_indicesNum : Integer) return Integer;
+  pragma Import(C, c_gcore_add_mesh, "c_gcore_add_mesh");
+
+  ------------------------------------------------------------------------------
 
   function Count_Childs(node : in XML_Node) return Integer is
     childNum : Integer := 0;
@@ -197,7 +207,7 @@ package body Scene is
 
   begin
 
-    Put("c/cpp: test_add(2,3) = "); Put_Line(test_add(2,3)'Image);
+    --Put("c/cpp: test_add(2,3) = "); Put_Line(test_add(2,3)'Image);
 
     xmlFileName := To_Unbounded_String(a_path & "/statex_00001.xml");
 
@@ -260,6 +270,34 @@ package body Scene is
       pragma Assert(a_scn.materials.all'Size > 0);
 
       -- pragma Assert(not matlib.Is_Null);
+
+      c_gcore_init_and_clear;
+
+      -- pass all meshes to geometry core
+      --
+      for meshId in a_scn.meshes'First ..  a_scn.meshes'Last loop
+
+        Put("meshId = "); Put_Line(meshId'Image);
+
+        if a_scn.meshes(meshId).triangles'Size /= 0 then
+        declare
+          geomId  : Integer := 0;
+          meshr   : Mesh    := a_scn.meshes(meshId);
+          p1,p2   : Address;
+        begin
+
+          p1     := meshr.vert_positions(0)'Address;
+          p2     := meshr.triangles(0)'Address;
+
+          Put_Line("here!");
+
+          geomId := c_gcore_add_mesh(p1, p2, (meshr.triangles'Size)*3);
+
+          Put("geomId = "); Put_Line(geomId'Image);
+
+        end;
+        end if;
+      end loop;
 
     end;
 

@@ -13,6 +13,7 @@ with Materials;
 with Pugi_Xml;
 with System;
 
+
 use Interfaces;
 use Ada.Streams.Stream_IO;
 use Ada.Numerics;
@@ -30,17 +31,25 @@ package body Scene is
 
   package Float_IO is new Ada.Text_IO.Float_IO(float);
 
-  ------------------------------------------------------------------------------
+  ------------------------------------------------------------------------------ begin import extern CPP code
 
   procedure gcore_init_and_clear;
   pragma Import(C, gcore_init_and_clear, "gcore_init_and_clear");
 
+  procedure gcore_destroy;
+  pragma Import(C, gcore_destroy, "gcore_destroy");
 
   function gcore_add_mesh_3f(a_vertices4f : Address; a_vertexNum  : Integer;
                              a_indices    : Address; a_indicesNum : Integer) return Integer;
   pragma Import(C, gcore_add_mesh_3f, "gcore_add_mesh_3f");
 
-  ------------------------------------------------------------------------------
+  procedure gcore_instance_meshes(a_geomId : Integer; a_matrices : Address; a_matrixNum : Integer);
+  pragma Import(C, gcore_instance_meshes, "gcore_instance_meshes");
+
+  procedure gcore_commit_scene;
+  pragma Import(C, gcore_commit_scene, "gcore_commit_scene");
+
+  ------------------------------------------------------------------------------ end   import extern CPP code
 
   function Count_Childs(node : in XML_Node) return Integer is
     childNum : Integer := 0;
@@ -107,6 +116,38 @@ package body Scene is
     return (arr(0), arr(1), arr(2));
 
   end Read_Float3_From_String;
+
+  type float16 is array (0 .. 15) of float;
+
+  function Read_Float16_From_String(str : String) return float16 is
+    arr  : float16;
+    coord, i, j : Integer := str'First;
+  begin
+
+    for coord in 0 .. 15 loop
+
+      while j <= str'Last and then str(j) /= ' ' loop -- find next space
+        j := j + 1;
+      end loop;
+
+      arr(coord) := Float'Value(str(i..j-1));
+
+      while j <= str'Last and then str(j) = ' ' loop -- now skip all spaces
+        j := j + 1;
+      end loop;
+
+      i := j;
+
+      if i = str'Last then
+        exit;
+      end if;
+
+    end loop;
+
+    return arr;
+
+  end Read_Float16_From_String;
+
 
   -- this function is a bit specific to hydra legacy format when value an be stoored in text or in attrib 'val'
   -- So it check node->attribute("val") first and if it is empty try to read float3 from node body/text
@@ -186,6 +227,57 @@ package body Scene is
 
   end Load_Textures;
 
+  -----------------------------------------------------------------------------------------------------
+  -----------------------------------------------------------------------------------------------------
+  -----------------------------------------------------------------------------------------------------
+  -----------------------------------------------------------------------------------------------------
+
+  procedure Add_Meshes_To_GCore(a_scn : in out Render_Scene) is
+    geomId  : Integer := 0;
+  begin
+
+    -- pass all meshes to geometry core
+    --
+    for meshId in a_scn.meshes'First ..  a_scn.meshes'Last loop
+
+      if a_scn.meshes(meshId).triangles'Size /= 0 then
+
+        geomId := gcore_add_mesh_3f(a_scn.meshes(meshId).vert_positions(0)'Address, a_scn.meshes(meshId).vert_positions'Size,
+                                    a_scn.meshes(meshId).triangles(0)'Address,     (a_scn.meshes(meshId).triangles'Size)*3);
+
+        Put("geomId = "); Put_Line(geomId'Image);
+      end if;
+
+    end loop;
+
+  end Add_Meshes_To_GCore;
+
+
+  procedure Instance_All_Meshes(a_scn : in out Render_Scene; scnlib : XML_Node) is
+    node : XML_Node := scnlib.child("instance");
+  begin
+
+     Put_Line("");
+     while not node.Is_Null loop
+
+       declare
+         matrix : float16 := Read_Float16_From_String(node.attribute("matrix").value);
+         meshId : Integer := node.attribute("mesh_id").as_int;
+       begin
+         --Put("matrix = "); Put_Line(node.attribute("matrix").value);
+         for i in 0 .. 15 loop
+           Put(matrix(i)'Image);
+           Put(" ");
+         end loop;
+         Put_Line("");
+         gcore_instance_meshes(meshId, matrix(0)'Address, 1);
+       end;
+
+       node := node.Next;
+
+     end loop;
+
+  end Instance_All_Meshes;
 
   -----------------------------------------------------------------------------------------------------
   -----------------------------------------------------------------------------------------------------
@@ -271,33 +363,20 @@ package body Scene is
 
       gcore_init_and_clear;
 
-      -- pass all meshes to geometry core
-      --
-      for meshId in a_scn.meshes'First ..  a_scn.meshes'Last loop
+      Add_Meshes_To_GCore(a_scn);
 
-        Put("meshId = "); Put_Line(meshId'Image);
+      Instance_All_Meshes(a_scn, scnlib.child("scene"));
 
-        if a_scn.meshes(meshId).triangles'Size /= 0 then
-        declare
-          geomId  : Integer := 0;
-          meshr   : Mesh    := a_scn.meshes(meshId);
-        begin
+      gcore_commit_scene;
 
-          geomId := gcore_add_mesh_3f(meshr.vert_positions(0)'Address, meshr.vert_positions'Size,
-                                      meshr.triangles(0)'Address,      (meshr.triangles'Size)*3);
-
-          Put("geomId = "); Put_Line(geomId'Image);
-
-        end;
-        end if;
-      end loop;
-
-    end;
+   end;
 
   end Init;
 
   procedure Destroy(a_scn : in out Render_Scene) is
   begin
+
+    gcore_destroy;
 
     if a_scn.meshes /= null then
       delete(a_scn.meshes);

@@ -24,6 +24,30 @@ struct GlobalData
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
+void error_handler(void* userPtr, const RTCError code, const char* str)
+  {
+    if (code == RTC_ERROR_NONE)
+      return;
+    
+    std::cout << ("Embree: ");
+    switch (code) {
+    case RTC_ERROR_UNKNOWN          : std::cout << "RTC_ERROR_UNKNOWN"; break;
+    case RTC_ERROR_INVALID_ARGUMENT : std::cout << "RTC_ERROR_INVALID_ARGUMENT"; break;
+    case RTC_ERROR_INVALID_OPERATION: std::cout << "RTC_ERROR_INVALID_OPERATION"; break;
+    case RTC_ERROR_OUT_OF_MEMORY    : std::cout << "RTC_ERROR_OUT_OF_MEMORY"; break;
+    case RTC_ERROR_UNSUPPORTED_CPU  : std::cout << "RTC_ERROR_UNSUPPORTED_CPU"; break;
+    case RTC_ERROR_CANCELLED        : std::cout << "RTC_ERROR_CANCELLED"; break;
+    default                         : std::cout << "invalid error code"; break;
+    }
+    if (str) {
+      std::cout << " (";
+      while (*str) std::cout << (*str++);
+      std::cout << ")\n";
+    }
+    exit(1);
+}
+
 extern "C" void gcore_destroy()
 {
   if(g_data.device != nullptr)
@@ -39,6 +63,7 @@ extern "C" void gcore_init_and_clear()
   g_data.m_meshes.resize(0);
   g_data.m_instances.resize(0);
   g_data.device = rtcNewDevice("");
+  rtcSetDeviceErrorFunction(g_data.device, error_handler, nullptr);
 }
 
 extern "C" int gcore_add_mesh_3f(const float* a_vertices3f, int a_vertexNum, const int* a_indices, int a_indicesNum)
@@ -83,7 +108,7 @@ extern "C" int gcore_add_mesh_3f(const float* a_vertices3f, int a_vertexNum, con
       C = a_vertexNum-1;
     }
 
-    if(A > maxVertexId) maxVertexId = A;
+    if(A > maxVertexId) maxVertexId = A;                         // #NOTE: just update 'maxVertexId'. this code does not touch (A,B,C).
     if(B > maxVertexId) maxVertexId = B;
     if(C > maxVertexId) maxVertexId = C;
 
@@ -119,36 +144,49 @@ extern "C" int gcore_add_mesh_3f(const float* a_vertices3f, int a_vertexNum, con
 }
 
 
-extern "C" int gcore_instance_meshes(int a_geomId, const float* a_matrices16f, int a_matrixNum)
+extern "C" void gcore_instance_meshes(int a_geomId, const float* a_matrices16f, int a_matrixNum)
 {
-  g_data.m_instances.resize(a_matrixNum);
-
-  for(size_t i=0; i < g_data.m_instances.size(); i++)
+  if(a_geomId >= g_data.m_meshes.size())
   {
-    g_data.m_instances[i] = rtcNewGeometry (g_data.device, RTC_GEOMETRY_TYPE_INSTANCE);
-    rtcSetGeometryInstancedScene(g_data.m_instances[i], g_data.m_scene);
-    rtcSetGeometryTimeStepCount (g_data.m_instances[i], 1);
-    rtcAttachGeometry           (g_data.m_scene,        g_data.m_instances[i]);
+    std::cout << "gcore_instance_meshes, bad meshId = " << a_geomId << std::endl;
+    return;
   }
 
-  // decrease fucking reference counter (embree3 equals shit)
-  //
-  for(size_t i=0; i < g_data.m_instances.size(); i++) 
-    rtcReleaseGeometry(g_data.m_instances[i]);
+  try 
+  {
 
-  // set matrices
-  //
-  for(size_t i=0; i < g_data.m_instances.size(); i++)
-    rtcSetGeometryTransform(g_data.m_instances[i], 0, RTC_FORMAT_FLOAT4X4_ROW_MAJOR, a_matrices16f + 16*i);
+    for(int matId = 0; matId < a_matrixNum; matId++)
+    {
+      g_data.m_instances.push_back(rtcNewGeometry(g_data.device, RTC_GEOMETRY_TYPE_INSTANCE));
+      const int instId  = g_data.m_instances.size()-1;
+      auto thisInstance = g_data.m_instances[instId];
 
-  // commit evetithing
-  //
-  for(size_t i=0; i < g_data.m_instances.size(); i++)
-    rtcCommitGeometry(g_data.m_instances[i]);
+      rtcSetGeometryInstancedScene(thisInstance, g_data.m_meshes[a_geomId]);                             // assign mesh/geometry to instance
+      rtcSetGeometryTimeStepCount (thisInstance, 1);
+      rtcAttachGeometry           (g_data.m_scene, thisInstance);                                        // attach this instance to global scene
+      
+      rtcReleaseGeometry(thisInstance);                                                                  // decrease fucking reference counter (embree3 equals shit)
+      
+      rtcSetGeometryTransform(thisInstance, 0, RTC_FORMAT_FLOAT4X4_COLUMN_MAJOR, a_matrices16f + 16*matId); // set matrix
+      
+      rtcCommitGeometry(thisInstance);
+    }
 
-  rtcCommitScene (g_data.m_scene);
+  } 
+  catch(std::runtime_error e)
+  {
+    std::cout << "[std    error]: " << e.what() << std::endl;
+  }
+  catch(...)
+  {
+     std::cout << "unknown error" << std::endl;
+  }
 
-  return 0;
+  return;
 }
 
 
+extern "C" void gcore_commit_scene()
+{
+  rtcCommitScene (g_data.m_scene);
+}

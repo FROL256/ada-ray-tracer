@@ -164,11 +164,9 @@ extern "C" void gcore_instance_meshes(int a_geomId, const float* a_matrices16f, 
       rtcSetGeometryInstancedScene(thisInstance, g_data.m_meshes[a_geomId]);                             // assign mesh/geometry to instance
       rtcSetGeometryTimeStepCount (thisInstance, 1);
       rtcAttachGeometry           (g_data.m_scene, thisInstance);                                        // attach this instance to global scene
-      
-      rtcReleaseGeometry(thisInstance);                                                                  // decrease fucking reference counter (embree3 equals shit)
-      
-      rtcSetGeometryTransform(thisInstance, 0, RTC_FORMAT_FLOAT4X4_COLUMN_MAJOR, a_matrices16f + 16*matId); // set matrix
-      
+    
+      //rtcSetGeometryTransform(thisInstance, 0, RTC_FORMAT_FLOAT4X4_COLUMN_MAJOR, a_matrices16f + 16*matId); // set matrix
+      rtcSetGeometryTransform(thisInstance, 0, RTC_FORMAT_FLOAT3X4_ROW_MAJOR, a_matrices16f + 16*matId); // set matrix	 
       rtcCommitGeometry(thisInstance);
     }
 

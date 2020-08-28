@@ -20,7 +20,7 @@ package Ray_Tracer is
   width  : Positive := 800;
   height : Positive := 600;
 
-  Threads_Num      : Positive := 8;
+  Threads_Num      : Positive := 1;
   Anti_Aliasing_On : boolean  := true;
   Max_Trace_Depth  : Positive := 8;
 

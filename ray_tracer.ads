@@ -17,10 +17,10 @@ use Geometry;
 
 package Ray_Tracer is
 
-  width  : Positive := 800;
-  height : Positive := 600;
+  width  : Positive := 1024;
+  height : Positive := 768;
 
-  Threads_Num      : Positive := 1;
+  Threads_Num      : Positive := 14*2;
   Anti_Aliasing_On : boolean  := true;
   Max_Trace_Depth  : Positive := 8;
 

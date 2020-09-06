@@ -183,6 +183,60 @@ extern "C" void gcore_instance_meshes(int a_geomId, const float* a_matrices16f, 
   return;
 }
 
+struct HitCpp
+{
+  int    primIndex;
+  int    geomIndex;
+  int    instIndex;
+  float  t;
+  float  normal[3];
+  float  texCoord[2];
+};
+
+extern "C" bool gcore_closest_hit(const float a_rayPos[3], const float a_rayDir[3], float t_near, float t_far,
+                                  HitCpp* pHit)
+{
+  RTCIntersectContext context;
+  rtcInitIntersectContext(&context);
+  
+  RTCRayHit rayHit;
+  rayHit.ray.org_x = a_rayPos[0];
+  rayHit.ray.org_y = a_rayPos[1];
+  rayHit.ray.org_z = a_rayPos[2];
+  rayHit.ray.tnear = t_near;
+
+  rayHit.ray.dir_x = a_rayDir[0]; 
+  rayHit.ray.dir_y = a_rayDir[1];
+  rayHit.ray.dir_z = a_rayDir[2];
+  rayHit.ray.time  = 0.0f;
+  rayHit.ray.tfar  = t_far;
+  
+  rayHit.ray.mask  = 0;
+  rayHit.ray.id    = 0;
+  rayHit.ray.flags = 0;
+
+  rtcIntersect1(g_data.m_scene, &context, &rayHit);
+  
+  const bool hitFound = (rayHit.hit.geomID != RTC_INVALID_GEOMETRY_ID) && (rayHit.ray.tfar < t_far) && (rayHit.ray.tnear > t_near);
+  
+  if(hitFound)
+  {
+    pHit->primIndex = rayHit.hit.primID;
+    pHit->t         = rayHit.ray.tfar;
+    pHit->normal[0] = rayHit.hit.Ng_x;
+    pHit->normal[1] = rayHit.hit.Ng_y;
+    pHit->normal[2] = rayHit.hit.Ng_z;  
+    
+    pHit->texCoord[0] = rayHit.hit.u;  
+    pHit->texCoord[1] = rayHit.hit.v; 
+      
+    pHit->geomIndex = rayHit.hit.geomID;  
+    pHit->instIndex = rayHit.hit.instID[0];  
+  }
+  
+  return hitFound;
+};
+
 
 extern "C" void gcore_commit_scene()
 {

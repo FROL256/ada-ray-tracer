@@ -1,4 +1,5 @@
 with Interfaces;
+with Interfaces.C;
 with Ada.Streams.Stream_IO;
 with Ada.Numerics;
 with Ada.Numerics.Float_Random;
@@ -48,6 +49,21 @@ package body Scene is
 
   procedure gcore_commit_scene;
   pragma Import(C, gcore_commit_scene, "gcore_commit_scene");
+
+  type Myfloat2 is array (0 .. 2) of float;
+  type Myfloat3 is array (0 .. 3) of float;
+
+  type HitCpp is record
+    primIndex : integer := -1;
+    geomIndex : integer := -1;
+    instIndex : integer := -1;
+    t         : float   := 0.0;
+    normal    : Myfloat3;
+    texCoord  : Myfloat2;
+  end record;
+
+  function gcore_closest_hit(a_rayPos : Address; a_rayDir : Address; t_near : float; t_far : float; pHit : Address) return Interfaces.C.char;
+  pragma Import(C, gcore_closest_hit, "gcore_closest_hit");
 
   ------------------------------------------------------------------------------ end   import extern CPP code
 
@@ -408,11 +424,22 @@ package body Scene is
 
 
   function Find_Closest_Hit(a_scn : in Render_Scene; r : in Geometry.Ray) return Geometry.Hit is
-    hit : Geometry.Hit;
+    hit     : Geometry.Hit;
+    hit_cpp : HitCpp;
+    hitRes  : Interfaces.C.char;
   begin
 
-    hit.is_hit := false;
-    hit.matId  := -1;
+    hitRes := gcore_closest_hit(r.origin.x'Address, r.direction.x'Address, 0.0, 100000.0,
+                                hit_cpp'Address);
+
+    hit.is_hit   := (hit_cpp.primIndex /= -1); --(hitRes /= 0);
+    hit.t        := hit_cpp.t;
+    hit.normal.x := hit_cpp.normal(0);
+    hit.normal.y := hit_cpp.normal(1);
+    hit.normal.z := hit_cpp.normal(2);
+    hit.tx       := hit_cpp.texCoord(0);
+    hit.ty       := hit_cpp.texCoord(1);
+    hit.matId    := -1;
 
     return hit;
 
